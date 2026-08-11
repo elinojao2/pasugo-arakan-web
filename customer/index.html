@@ -1,0 +1,1480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pasugo Arakan — Order Now</title>
+<link rel="icon" type="image/png" href="../assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Rounded">
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCHRnRqAWrk4giJEaXw7zd8jyYwgFFLIKA"></script>
+<style>
+  :root{
+    --green:#16A34A; --green-dark:#15803D; --green-tint:#DCFCE7; --green-tint-2:#F0FDF4;
+    --white:#FFFFFF; --ink:#111827; --ink-2:#374151; --gray-600:#4B5563; --gray-400:#9CA3AF;
+    --gray-200:#E5E7EB; --gray-100:#F3F4F6; --gray-50:#F9FAFB;
+    --amber:#F59E0B; --amber-tint:#FEF3C7; --red:#DC2626; --red-tint:#FEE2E2; --blue:#3B82F6; --blue-tint:#DBEAFE;
+    --radius:16px; --radius-sm:10px; --shadow:0 1px 3px rgba(17,24,39,.06),0 8px 24px -8px rgba(17,24,39,.08);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Poppins',sans-serif;background:var(--gray-50);color:var(--ink);}
+  ::-webkit-scrollbar{width:8px;height:8px;} ::-webkit-scrollbar-thumb{background:var(--gray-200);border-radius:8px;}
+  a{color:inherit;text-decoration:none;} button{font-family:inherit;cursor:pointer;}
+
+  /* ---------- Auth ---------- */
+  #auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 80% 15%, #16A34A 0%, #0F172A 55%, #0B1120 100%);padding:24px;}
+  .auth-card{width:100%;max-width:400px;background:rgba(255,255,255,.98);border-radius:24px;padding:36px 32px;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,.5);}
+  .auth-brand{display:flex;align-items:center;gap:10px;margin-bottom:24px;}
+  .auth-brand img{width:40px;height:40px;border-radius:12px;object-fit:contain;}
+  .auth-brand .name{font-weight:700;font-size:17px;} .auth-brand .sub{font-size:11.5px;color:var(--gray-600);}
+  .auth-card h1{font-size:20px;font-weight:700;margin:0 0 4px;} .auth-card p.hint{color:var(--gray-600);font-size:12.5px;margin:0 0 20px;}
+  .tabs{display:flex;background:var(--gray-100);border-radius:10px;padding:3px;margin-bottom:18px;}
+  .tab{flex:1;text-align:center;padding:8px;border-radius:8px;font-size:12.5px;font-weight:600;color:var(--gray-600);cursor:pointer;}
+  .tab.active{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.06);}
+  .field{margin-bottom:14px;} .field label{display:block;font-size:11.5px;font-weight:600;color:var(--ink-2);margin-bottom:5px;}
+  .field input,.field select,.field textarea{width:100%;padding:10px 13px;border:1.5px solid var(--gray-200);border-radius:10px;
+    font-family:inherit;font-size:13.5px;background:var(--white);transition:.15s;}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-tint);}
+  .btn{border:none;border-radius:10px;padding:11px 18px;font-weight:600;font-size:13.5px;display:inline-flex;align-items:center;
+    gap:6px;justify-content:center;transition:.15s;}
+  .btn-primary{background:var(--green);color:#fff;width:100%;} .btn-primary:hover{background:var(--green-dark);}
+  .btn-primary:disabled{opacity:.6;cursor:not-allowed;}
+  .btn-ghost{background:var(--gray-100);color:var(--ink-2);} .btn-ghost:hover{background:var(--gray-200);}
+  .btn-outline{background:#fff;color:var(--green-dark);border:1.5px solid var(--green);}
+  .btn-danger{background:var(--red-tint);color:var(--red);}
+  .btn-sm{padding:7px 12px;font-size:12px;border-radius:8px;width:auto;}
+  #auth-error{color:var(--red);font-size:12px;margin-top:8px;min-height:16px;}
+  .auth-switch{text-align:center;margin-top:16px;font-size:12px;color:var(--gray-600);}
+  .auth-switch a{color:var(--green-dark);font-weight:600;cursor:pointer;}
+
+  /* ---------- App shell ---------- */
+  #app{display:none;min-height:100vh;flex-direction:column;}
+  #app.active{display:flex;}
+  .topbar{background:#fff;border-bottom:1px solid var(--gray-200);padding:12px 24px;display:flex;align-items:center;gap:16px;
+    position:sticky;top:0;z-index:50;}
+  .topbar img.logo{width:34px;height:34px;object-fit:contain;cursor:pointer;}
+  .topbar .search{flex:1;max-width:420px;position:relative;}
+  .topbar .search input{width:100%;padding:9px 14px 9px 36px;border:1.5px solid var(--gray-200);border-radius:20px;font-size:13px;font-family:inherit;}
+  .topbar .search .material-symbols-rounded{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--gray-400);}
+  .topbar-spacer{flex:1;}
+  .topbar-icon{position:relative;width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    background:var(--gray-100);cursor:pointer;}
+  .topbar-icon:hover{background:var(--gray-200);}
+  .cart-badge{position:absolute;top:-4px;right:-4px;background:var(--green);color:#fff;font-size:9.5px;font-weight:700;
+    border-radius:20px;padding:1px 5px;min-width:16px;text-align:center;}
+  .topbar-avatar{width:36px;height:36px;border-radius:50%;background:var(--green-tint);color:var(--green-dark);
+    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;cursor:pointer;}
+
+  main{flex:1;max-width:1100px;width:100%;margin:0 auto;padding:24px;}
+  .view{display:none;} .view.active{display:block;}
+
+  h2.section-title{font-size:16px;font-weight:700;margin:0 0 14px;}
+  .cat-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin-bottom:26px;}
+  .cat-chip{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 16px;background:#fff;
+    border:1.5px solid var(--gray-200);border-radius:14px;cursor:pointer;min-width:76px;transition:.15s;}
+  .cat-chip:hover{border-color:var(--green);}
+  .cat-chip .material-symbols-rounded{font-size:24px;color:var(--green-dark);}
+  .cat-chip span.label{font-size:11px;font-weight:600;text-align:center;}
+
+  .store-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;margin-bottom:30px;}
+  .store-card{background:#fff;border-radius:14px;overflow:hidden;border:1px solid var(--gray-200);cursor:pointer;transition:.15s;}
+  .store-card:hover{box-shadow:var(--shadow);transform:translateY(-2px);}
+  .store-card .cover{height:110px;background:var(--gray-100);position:relative;}
+  .store-card .cover img{width:100%;height:100%;object-fit:cover;}
+  .store-card .closed-badge{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;}
+  .store-card .closed-badge span{background:#fff;color:var(--red);font-size:10.5px;font-weight:800;padding:4px 10px;border-radius:20px;}
+  .store-card .body{padding:12px;}
+  .store-card .name{font-weight:700;font-size:13.5px;margin-bottom:2px;}
+  .store-card .meta{font-size:11px;color:var(--gray-600);display:flex;align-items:center;gap:4px;}
+
+  .empty-state{padding:50px 20px;text-align:center;color:var(--gray-600);}
+  .empty-state .material-symbols-rounded{font-size:40px;color:var(--gray-400);margin-bottom:8px;}
+  .skeleton{background:linear-gradient(90deg,var(--gray-100) 25%,var(--gray-200) 37%,var(--gray-100) 63%);
+    background-size:400% 100%;animation:sk 1.4s ease infinite;border-radius:8px;}
+  @keyframes sk{0%{background-position:100% 50%;}100%{background-position:0 50%;}}
+
+  /* ---------- Store detail ---------- */
+  .store-hero{height:160px;border-radius:16px;background:var(--gray-100);position:relative;overflow:hidden;margin-bottom:16px;}
+  .store-hero img{width:100%;height:100%;object-fit:cover;}
+  .store-hero .info{position:absolute;left:16px;bottom:-28px;background:#fff;border-radius:14px;padding:10px 16px;
+    box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;}
+  .store-hero .info img{width:44px;height:44px;border-radius:10px;}
+  .product-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin-top:44px;}
+  .product-card{background:#fff;border:1px solid var(--gray-200);border-radius:14px;overflow:hidden;}
+  .product-card .thumb{height:100px;background:var(--gray-100);}
+  .product-card .thumb img{width:100%;height:100%;object-fit:cover;}
+  .product-card .body{padding:10px;}
+  .product-card .name{font-size:12.5px;font-weight:600;margin-bottom:4px;}
+  .product-card .price{font-size:13px;font-weight:700;color:var(--green-dark);}
+  .qty-row{display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
+  .qty-btn{width:26px;height:26px;border-radius:7px;background:var(--gray-100);display:flex;align-items:center;justify-content:center;
+    border:none;font-size:15px;}
+  .qty-btn:hover{background:var(--gray-200);}
+
+  /* ---------- Cart / checkout ---------- */
+  .cart-drawer{position:fixed;top:0;right:-420px;width:400px;max-width:92vw;height:100vh;background:#fff;box-shadow:-8px 0 30px rgba(0,0,0,.15);
+    z-index:100;transition:right .25s ease;display:flex;flex-direction:column;}
+  .cart-drawer.open{right:0;}
+  .cart-drawer-header{padding:18px 20px;border-bottom:1px solid var(--gray-200);display:flex;justify-content:space-between;align-items:center;}
+  .cart-drawer-body{flex:1;overflow-y:auto;padding:16px 20px;}
+  .cart-drawer-footer{padding:18px 20px;border-top:1px solid var(--gray-200);}
+  .cart-item{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-100);}
+  .cart-item .name{font-size:12.5px;font-weight:600;}
+  .cart-item .price{font-size:11.5px;color:var(--gray-600);}
+  #cart-overlay{position:fixed;inset:0;background:rgba(17,24,39,.4);z-index:99;display:none;}
+  #cart-overlay.active{display:block;}
+
+  .checkout-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:24px;}
+  @media(max-width:800px){.checkout-grid{grid-template-columns:1fr;}}
+  .card{background:#fff;border-radius:14px;padding:18px;border:1px solid var(--gray-200);margin-bottom:16px;}
+  .summary-row{display:flex;justify-content:space-between;font-size:13px;padding:4px 0;color:var(--gray-600);}
+  .summary-row.total{font-weight:800;font-size:15px;color:var(--ink);border-top:1px solid var(--gray-200);padding-top:10px;margin-top:6px;}
+  .radio-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--gray-100);cursor:pointer;}
+  .addr-option{padding:12px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:8px;cursor:pointer;}
+  .addr-option.selected{border-color:var(--green);background:var(--green-tint-2);}
+
+  /* ---------- Order tracking ---------- */
+  .status-track{display:flex;align-items:center;margin-bottom:20px;}
+  .status-step{flex:1;text-align:center;position:relative;}
+  .status-step .dot{width:12px;height:12px;border-radius:50%;background:var(--gray-200);margin:0 auto 6px;}
+  .status-step.done .dot{background:var(--green);}
+  .status-step .label{font-size:9.5px;color:var(--gray-400);}
+  .status-step.done .label{color:var(--green-dark);font-weight:600;}
+  #tracking-map{height:280px;border-radius:14px;margin-bottom:16px;}
+
+  .chip{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10.5px;font-weight:700;}
+  .chip.pending{background:var(--amber-tint);color:#92400E;} .chip.accepted{background:var(--blue-tint);color:var(--blue);}
+  .chip.picked_up,.chip.on_the_way,.chip.arrived,.chip.shopping{background:var(--blue-tint);color:var(--blue);}
+  .chip.delivered{background:var(--green-tint);color:var(--green-dark);} .chip.cancelled{background:var(--red-tint);color:var(--red);}
+
+  .toast-stack{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px;}
+  .toast{background:var(--ink);color:#fff;padding:12px 16px;border-radius:10px;font-size:12.5px;box-shadow:var(--shadow);
+    display:flex;align-items:center;gap:8px;animation:toastin .2s ease;}
+  .toast.err{background:var(--red);}
+  @keyframes toastin{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+
+  /* ---------- Services (Pasabuy / Courier / Pa Angkas) ---------- */
+  .service-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:30px;}
+  .service-card{background:#fff;border:1.5px solid var(--gray-200);border-radius:14px;padding:16px 12px;text-align:center;cursor:pointer;transition:.15s;}
+  .service-card:hover{border-color:var(--green);box-shadow:var(--shadow);}
+  .service-card .material-symbols-rounded{font-size:26px;color:var(--green-dark);margin-bottom:6px;}
+  .service-card .label{font-size:11.5px;font-weight:700;}
+  .service-card .sub{font-size:9.5px;color:var(--gray-600);margin-top:2px;}
+  .pin-box{padding:12px;background:var(--green-tint-2);border-radius:10px;margin-top:8px;}
+  .pin-actions{display:flex;gap:8px;margin-top:8px;}
+  .pin-actions .btn{flex:1;}
+  #booking-map{height:200px;border-radius:12px;margin-bottom:10px;background:var(--gray-100);}
+  .stepper{display:flex;align-items:center;gap:14px;}
+  .stepper .qbtn{width:30px;height:30px;border-radius:8px;background:var(--gray-100);border:none;font-size:16px;}
+
+  /* ================= MOBILE ================= */
+  @media (max-width: 680px) {
+    .auth-card{padding:28px 22px;border-radius:18px;}
+    .topbar{padding:10px 12px;gap:8px;}
+    .topbar .search{max-width:none;}
+    .topbar .search input{font-size:12.5px;padding:8px 12px 8px 32px;}
+    main{padding:14px;}
+    h2.section-title{font-size:14.5px;}
+    .store-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+    .product-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px;}
+    .service-grid{gap:8px;}
+    .service-card{padding:12px 8px;}
+    .service-card .material-symbols-rounded{font-size:22px;}
+    .cart-drawer{width:100vw;max-width:100vw;right:-100vw;}
+    .checkout-grid{grid-template-columns:1fr;gap:14px;}
+    .card{padding:14px;border-radius:12px;}
+    .store-hero{height:130px;}
+    .store-hero .info{padding:8px 12px;bottom:-24px;}
+    .store-hero .info img{width:36px;height:36px;}
+    #tracking-map,#booking-map,#address-map{height:200px;}
+    .topbar-avatar,.topbar-icon{width:34px;height:34px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- ================= AUTH ================= -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-brand">
+      <img src="../assets/favicon.png" alt="Pasugo Arakan">
+      <div><div class="name">Pasugo Arakan</div><div class="sub">Order Now</div></div>
+    </div>
+
+    <div id="auth-step-credentials">
+      <div class="tabs">
+        <div class="tab active" id="tab-login" onclick="switchAuthTab('login')">Sign in</div>
+        <div class="tab" id="tab-register" onclick="switchAuthTab('register')">Sign up</div>
+      </div>
+
+      <div id="login-form">
+        <h1>Welcome back</h1>
+        <p class="hint">Order from local stores in Arakan in minutes.</p>
+        <div class="field"><label>Email or mobile number</label><input id="login-identifier" placeholder="you@example.com"></div>
+        <div class="field"><label>Password</label><input id="login-password" type="password"></div>
+        <button class="btn btn-primary" onclick="doLogin()">Sign in</button>
+      </div>
+
+      <div id="register-form" style="display:none">
+        <h1>Create your account</h1>
+        <p class="hint">Mobile number is required — we use it to verify your account.</p>
+        <div class="field"><label>Full name</label><input id="reg-name"></div>
+        <div class="field"><label>Email (optional)</label><input id="reg-email"></div>
+        <div class="field"><label>Mobile number</label><input id="reg-mobile" placeholder="09XXXXXXXXX"></div>
+        <div class="field"><label>Password (min. 6 characters)</label><input id="reg-password" type="password"></div>
+        <button class="btn btn-primary" onclick="doRegister()">Create account</button>
+      </div>
+
+      <div id="auth-error"></div>
+    </div>
+
+    <div id="auth-step-otp" style="display:none">
+      <h1>Verify your number</h1>
+      <p class="hint" id="otp-hint">We sent a 6-digit code to your mobile number.</p>
+      <div class="field"><label>Verification code</label><input id="otp-code" maxlength="6" placeholder="000000" style="letter-spacing:4px;font-size:18px;text-align:center"></div>
+      <button class="btn btn-primary" onclick="doVerifyOtp()">Verify</button>
+      <div style="text-align:center;margin-top:12px">
+        <a onclick="doResendOtp()" style="font-size:12px;color:var(--green-dark);font-weight:600;cursor:pointer">Resend code</a>
+      </div>
+      <div id="otp-error" style="color:var(--red);font-size:12px;margin-top:8px;min-height:16px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= APP ================= -->
+<div id="app">
+  <div class="topbar">
+    <img class="logo" src="../assets/favicon.png" alt="Pasugo Arakan" onclick="navigate('home')">
+    <div class="search">
+      <span class="material-symbols-rounded">search</span>
+      <input id="store-search" placeholder="Search stores..." onkeydown="if(event.key==='Enter')searchStores()">
+    </div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-icon" onclick="navigate('orders')" title="My orders"><span class="material-symbols-rounded">receipt_long</span></div>
+    <div class="topbar-icon" onclick="openCart()" title="Cart">
+      <span class="material-symbols-rounded">shopping_cart</span>
+      <span class="cart-badge" id="cart-badge" style="display:none">0</span>
+    </div>
+    <div class="topbar-avatar" id="topbar-avatar" onclick="navigate('profile')">U</div>
+  </div>
+
+  <main>
+    <!-- ---------------- HOME ---------------- -->
+    <div class="view active" id="view-home">
+      <h2 class="section-title">Other services</h2>
+      <div class="service-grid">
+        <div class="service-card" onclick="openBooking('pasabuy')">
+          <span class="material-symbols-rounded">shopping_bag</span>
+          <div class="label">Pasabuy</div>
+          <div class="sub">Buy anything</div>
+        </div>
+        <div class="service-card" onclick="openBooking('courier')">
+          <span class="material-symbols-rounded">local_shipping</span>
+          <div class="label">Courier</div>
+          <div class="sub">Send a package</div>
+        </div>
+        <div class="service-card" onclick="openBooking('pa_angkas')">
+          <span class="material-symbols-rounded">two_wheeler</span>
+          <div class="label">Pa Angkas</div>
+          <div class="sub">Book a ride</div>
+        </div>
+      </div>
+
+      <h2 class="section-title">Categories</h2>
+      <div class="cat-scroll" id="cat-scroll"></div>
+
+      <h2 class="section-title">Nearby stores</h2>
+      <div class="store-grid" id="nearby-grid"></div>
+
+      <h2 class="section-title">Popular stores</h2>
+      <div class="store-grid" id="popular-grid"></div>
+    </div>
+
+    <!-- ---------------- SEARCH RESULTS ---------------- -->
+    <div class="view" id="view-search">
+      <h2 class="section-title" id="search-title">Search results</h2>
+      <div class="store-grid" id="search-grid"></div>
+    </div>
+
+    <!-- ---------------- STORE DETAIL ---------------- -->
+    <div class="view" id="view-store">
+      <button class="btn btn-ghost btn-sm" onclick="navigate('home')" style="margin-bottom:14px">
+        <span class="material-symbols-rounded" style="font-size:16px">arrow_back</span> Back
+      </button>
+      <div class="store-hero" id="store-hero"></div>
+      <div class="product-grid" id="product-grid"></div>
+    </div>
+
+    <!-- ---------------- CHECKOUT ---------------- -->
+    <div class="view" id="view-checkout">
+      <h2 class="section-title">Checkout</h2>
+      <div class="checkout-grid">
+        <div>
+          <div class="card">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:10px">Delivery address</div>
+            <div id="checkout-addresses"></div>
+            <button class="btn btn-ghost btn-sm" onclick="openAddAddress()" style="margin-top:8px">
+              <span class="material-symbols-rounded" style="font-size:15px">add</span> Add new address
+            </button>
+          </div>
+          <div class="card">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:10px">Notes for the rider</div>
+            <textarea id="checkout-notes" rows="2" placeholder="e.g. Gate code, leave at guard house..." style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:inherit;font-size:13px"></textarea>
+          </div>
+          <div class="card">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:10px">Payment method</div>
+            <div id="checkout-payment"></div>
+          </div>
+          <div class="card">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:10px">Promo code</div>
+            <input id="checkout-promo" placeholder="Enter promo code" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:inherit;font-size:13px">
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:10px">Order summary</div>
+            <div id="checkout-items"></div>
+            <div style="border-top:1px solid var(--gray-200);margin-top:10px;padding-top:10px">
+              <div class="summary-row"><span>Subtotal</span><span id="cs-subtotal">₱0.00</span></div>
+              <div class="summary-row"><span>Delivery fee</span><span id="cs-delivery">—</span></div>
+              <div class="summary-row"><span>Service fee</span><span id="cs-service">—</span></div>
+              <div class="summary-row total"><span>Total</span><span id="cs-total">₱0.00</span></div>
+            </div>
+            <button class="btn btn-primary" onclick="placeOrder()" style="margin-top:14px" id="place-order-btn">Place order</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------- ORDER TRACKING ---------------- -->
+    <div class="view" id="view-tracking">
+      <button class="btn btn-ghost btn-sm" onclick="navigate('orders')" style="margin-bottom:14px">
+        <span class="material-symbols-rounded" style="font-size:16px">arrow_back</span> Back to orders
+      </button>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div>
+            <div style="font-weight:700;font-size:15px" id="track-order-number">Order</div>
+            <div style="font-size:11.5px;color:var(--gray-600)" id="track-order-meta"></div>
+          </div>
+          <span id="track-status-chip"></span>
+        </div>
+        <div class="status-track" id="status-track"></div>
+        <div id="tracking-map"></div>
+        <div id="track-rider-card"></div>
+      </div>
+    </div>
+
+    <!-- ---------------- BOOKING (Pasabuy / Courier / Pa Angkas) ---------------- -->
+    <div class="view" id="view-booking">
+      <button class="btn btn-ghost btn-sm" onclick="navigate('home')" style="margin-bottom:14px">
+        <span class="material-symbols-rounded" style="font-size:16px">arrow_back</span> Back
+      </button>
+      <h2 class="section-title" id="booking-title">Book a service</h2>
+      <div class="checkout-grid">
+        <div>
+          <!-- Pasabuy fields -->
+          <div class="card" id="bk-pasabuy-fields" style="display:none">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:10px">Store name</div>
+            <input id="bk-store-name" placeholder="e.g. ABC Grocery" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:14px">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Items to buy</div>
+            <div id="bk-items-list"></div>
+            <button class="btn btn-ghost btn-sm" onclick="addItemRow()" style="margin-bottom:14px">
+              <span class="material-symbols-rounded" style="font-size:15px">add</span> Add item
+            </button>
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Estimated budget (₱)</div>
+            <input id="bk-budget" type="number" placeholder="e.g. 800" oninput="fetchBookingQuote()" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:14px">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Special instructions</div>
+            <textarea id="bk-instructions" rows="2" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:inherit"></textarea>
+          </div>
+
+          <!-- Courier fields -->
+          <div class="card" id="bk-courier-fields" style="display:none">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Receiver name</div>
+            <input id="bk-receiver-name" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:14px">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Receiver mobile number</div>
+            <input id="bk-receiver-number" placeholder="09XXXXXXXXX" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:14px">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Item description</div>
+            <textarea id="bk-item-desc" rows="2" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:inherit;margin-bottom:14px"></textarea>
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Package size</div>
+            <select id="bk-package-size" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:14px">
+              <option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option>
+            </select>
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Approx. weight (kg, optional)</div>
+            <input id="bk-weight" type="number" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px">
+          </div>
+
+          <!-- Pa Angkas fields -->
+          <div class="card" id="bk-angkas-fields" style="display:none">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Number of passengers</div>
+            <div class="stepper" style="margin-bottom:14px">
+              <button class="qbtn" onclick="changePassengerCount(-1)">−</button>
+              <span id="bk-passenger-count" style="font-weight:700;font-size:15px">1</span>
+              <button class="qbtn" onclick="changePassengerCount(1)">+</button>
+            </div>
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Notes for the rider</div>
+            <textarea id="bk-notes" rows="2" placeholder="e.g. Wearing a red jacket, waiting by the tricycle stand" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:inherit"></textarea>
+          </div>
+
+          <!-- Shared: pickup location (courier & pa_angkas only) -->
+          <div class="card" id="bk-pickup-card">
+            <div id="bk-pickup-label" style="font-weight:700;font-size:13.5px;margin-bottom:8px">Pickup address</div>
+            <input id="bk-pickup-address" placeholder="Where should the rider pick up?" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px">
+            <div class="pin-box">
+              <div style="display:flex;align-items:center;gap:6px;font-size:12px" id="bk-pickup-status">
+                <span class="material-symbols-rounded" style="font-size:16px;color:var(--green-dark)">my_location</span> Location not set yet
+              </div>
+              <div class="pin-actions">
+                <button class="btn btn-outline btn-sm" onclick="openBookingMap()"><span class="material-symbols-rounded" style="font-size:14px">map</span> Pin on map</button>
+                <button class="btn btn-outline btn-sm" onclick="useCurrentLocationForBooking()"><span class="material-symbols-rounded" style="font-size:14px">gps_fixed</span> Use current</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Shared: dropoff -->
+          <div class="card">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:10px" id="bk-dropoff-label">Deliver to</div>
+            <div id="bk-addresses"></div>
+            <button class="btn btn-ghost btn-sm" onclick="openAddAddress()" style="margin-top:8px">
+              <span class="material-symbols-rounded" style="font-size:15px">add</span> Add new address
+            </button>
+          </div>
+
+          <!-- Shared: payment -->
+          <div class="card">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:10px">Payment method</div>
+            <div id="bk-payment"></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:10px">Summary</div>
+            <div id="bk-summary-extra"></div>
+            <div class="summary-row"><span>Delivery fee</span><span id="bk-delivery">—</span></div>
+            <div class="summary-row"><span>Service fee</span><span id="bk-service">—</span></div>
+            <div class="summary-row total"><span>Total</span><span id="bk-total">—</span></div>
+            <button class="btn btn-primary" onclick="submitBooking()" style="margin-top:14px" id="bk-submit-btn">Submit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------------- WALLET ---------------- -->
+    <div class="view" id="view-wallet">
+      <button class="btn btn-ghost btn-sm" onclick="navigate('profile')" style="margin-bottom:14px">
+        <span class="material-symbols-rounded" style="font-size:16px">arrow_back</span> Back
+      </button>
+      <h2 class="section-title">Wallet</h2>
+      <div style="background:linear-gradient(135deg,var(--green),var(--green-dark));border-radius:18px;padding:20px;color:#fff;margin-bottom:14px">
+        <div style="font-size:12px;opacity:.85">Wallet balance</div>
+        <div style="font-size:28px;font-weight:800;margin:4px 0" id="wallet-balance">₱0.00</div>
+        <div style="font-size:10.5px;opacity:.85">Use this to pay at checkout — select "Pasugo Wallet" as your payment method.</div>
+      </div>
+      <div class="card" style="display:flex;align-items:center;gap:12px">
+        <span class="material-symbols-rounded" style="font-size:26px;color:var(--amber)">stars</span>
+        <div style="flex:1">
+          <div style="font-weight:700;font-size:13.5px" id="wallet-points">0 loyalty points</div>
+          <div style="font-size:11px;color:var(--gray-600)">Convert points into wallet balance</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="convertPoints()" id="convert-points-btn">Convert</button>
+      </div>
+      <h2 class="section-title" style="margin-top:20px">Transaction history</h2>
+      <div id="wallet-transactions"></div>
+    </div>
+
+    <!-- ---------------- MY ORDERS ---------------- -->
+    <div class="view" id="view-orders">
+      <h2 class="section-title">My orders</h2>
+      <div id="orders-list"></div>
+    </div>
+
+    <!-- ---------------- PROFILE ---------------- -->
+    <div class="view" id="view-profile">
+      <h2 class="section-title">Profile</h2>
+      <div class="card" id="profile-card"></div>
+      <div class="card" style="cursor:pointer" onclick="navigate('wallet');loadWallet()">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="material-symbols-rounded" style="color:var(--green-dark)">account_balance_wallet</span>
+          <div style="flex:1;font-weight:600;font-size:13px">Wallet & loyalty points</div>
+          <span class="material-symbols-rounded" style="color:var(--gray-400)">chevron_right</span>
+        </div>
+      </div>
+      <div class="card">
+        <button class="btn btn-danger" onclick="logout()">Log out</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- ---------------- CART DRAWER ---------------- -->
+  <div id="cart-overlay" onclick="closeCart()"></div>
+  <div class="cart-drawer" id="cart-drawer">
+    <div class="cart-drawer-header">
+      <div style="font-weight:700;font-size:15px">Your cart</div>
+      <span class="material-symbols-rounded" style="cursor:pointer" onclick="closeCart()">close</span>
+    </div>
+    <div class="cart-drawer-body" id="cart-drawer-body"></div>
+    <div class="cart-drawer-footer">
+      <div class="summary-row total" style="border:none;padding:0 0 12px"><span>Subtotal</span><span id="cart-subtotal">₱0.00</span></div>
+      <button class="btn btn-primary" onclick="goToCheckout()" id="checkout-btn">Proceed to checkout</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toast-stack"></div>
+
+<!-- ================= PIN PICKER (booking pickup location) ================= -->
+<div class="modal-backdrop" id="modal-pin-picker" style="position:fixed;inset:0;background:rgba(17,24,39,.5);display:none;align-items:center;justify-content:center;z-index:150">
+  <div style="background:#fff;border-radius:16px;padding:20px;width:420px;max-width:92vw">
+    <h3 style="margin:0 0 12px">Pin pickup location</h3>
+    <div id="pin-picker-map" style="height:240px;border-radius:12px;margin-bottom:14px;background:var(--gray-100)"></div>
+    <div style="display:flex;gap:10px">
+      <button class="btn btn-ghost" onclick="closePinPicker()" style="flex:1">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmPinPicker()" style="flex:1">Confirm location</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ADD ADDRESS MODAL ================= -->
+<div class="modal-backdrop" id="modal-address" style="position:fixed;inset:0;background:rgba(17,24,39,.5);display:none;align-items:center;justify-content:center;z-index:150">
+  <div style="background:#fff;border-radius:16px;padding:24px;width:460px;max-width:92vw;max-height:88vh;overflow-y:auto">
+    <h3 style="margin:0 0 14px">Add delivery address</h3>
+    <div id="address-map" style="height:220px;border-radius:12px;margin-bottom:14px;background:var(--gray-100)"></div>
+    <div class="field"><label>Label</label><input id="addr-label" placeholder="Home, Work, etc."></div>
+    <div class="field"><label>Recipient name</label><input id="addr-recipient"></div>
+    <div class="field"><label>Contact number</label><input id="addr-contact" placeholder="09XXXXXXXXX"></div>
+    <div class="field"><label>Barangay</label><input id="addr-barangay"></div>
+    <div class="field"><label>Street / landmark</label><input id="addr-street"></div>
+    <div style="display:flex;gap:10px;margin-top:16px">
+      <button class="btn btn-ghost" onclick="closeAddAddress()" style="flex:1">Cancel</button>
+      <button class="btn btn-primary" onclick="saveNewAddress()" style="flex:1">Save address</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ⚠️ CONFIGURE THIS before deploying — your Flask backend's address.
+// For local testing this is your PC's WiFi IP (check with `ipconfig`,
+// changes when you switch networks). For a real deployment, this is your
+// server's actual domain, e.g. "https://api.pasugoarakan.ph".
+let API_BASE = "https://api.pasugoarakan.com";
+let TOKEN = null;
+let ME = null;
+let CATEGORIES = [];
+let CART = []; // [{product, qty}]
+let CART_STORE = null; // {id, name}
+let CURRENT_STORE = null;
+let ADDRESSES = [];
+let SELECTED_ADDRESS = null;
+let PAYMENT_METHOD = "cod";
+let CURRENT_QUOTE = null;
+let TRACK_ORDER_ID = null;
+let TRACK_TIMER = null;
+let TRACK_MAP = null;
+let ADDR_MAP = null;
+let ADDR_MARKER = null;
+let PENDING_MOBILE = null;
+let AUTH_MODE = "login"; // login | register
+
+const CATEGORY_ICONS = {
+  food: "restaurant", grocery: "local_grocery_store", pharmacy: "medication",
+  hardware: "hardware", pasabuy: "shopping_bag", default: "storefront",
+};
+
+// ------------------------------------------------------------- API core --
+async function api(path, options = {}) {
+  const res = await fetch(API_BASE.replace(/\/$/, "") + path, {
+    ...options,
+    headers: { "Content-Type": "application/json", ...(TOKEN ? { Authorization: "Bearer " + TOKEN } : {}), ...(options.headers || {}) },
+  });
+  let data = null; try { data = await res.json(); } catch (e) {}
+  if (!res.ok) { const err = new Error((data && data.message) || `Request failed (${res.status})`); err.errorCode = data && data.error_code; throw err; }
+  return data;
+}
+function escapeHtml(str) { return String(str ?? "").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m])); }
+function money(n) { return "₱" + Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 }); }
+function dt(iso) { if (!iso) return "—"; const d = new Date(iso); return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+function chip(status) { return `<span class="chip ${status}">${(status||"").replace(/_/g," ")}</span>`; }
+function showToast(msg, isErr = false) {
+  const el = document.createElement("div");
+  el.className = "toast" + (isErr ? " err" : "");
+  el.innerHTML = `<span class="material-symbols-rounded" style="font-size:16px">${isErr ? "error" : "check_circle"}</span>${escapeHtml(msg)}`;
+  document.getElementById("toast-stack").appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// -------------------------------------------------------------- Auth flow --
+function switchAuthTab(tab) {
+  AUTH_MODE = tab;
+  document.getElementById("tab-login").classList.toggle("active", tab === "login");
+  document.getElementById("tab-register").classList.toggle("active", tab === "register");
+  document.getElementById("login-form").style.display = tab === "login" ? "block" : "none";
+  document.getElementById("register-form").style.display = tab === "register" ? "block" : "none";
+  document.getElementById("auth-error").textContent = "";
+}
+
+async function doLogin() {
+  const id = document.getElementById("login-identifier").value.trim();
+  const pass = document.getElementById("login-password").value;
+  const errEl = document.getElementById("auth-error"); errEl.textContent = "";
+  if (!id || !pass) { errEl.textContent = "Fill in all fields."; return; }
+  try {
+    const body = id.includes("@") ? { email: id, password: pass } : { mobile_number: id, password: pass };
+    const data = await api("/api/auth/login", { method: "POST", body: JSON.stringify(body) });
+    if (data.user.role !== "customer") throw new Error("This account is not a customer account.");
+    TOKEN = data.access_token; ME = data.user;
+    if (!ME.is_mobile_verified && ME.mobile_number) {
+      PENDING_MOBILE = ME.mobile_number;
+      showOtpStep(true);
+    } else {
+      enterApp();
+    }
+  } catch (e) { errEl.textContent = e.message; }
+}
+
+async function doRegister() {
+  const errEl = document.getElementById("auth-error"); errEl.textContent = "";
+  const full_name = document.getElementById("reg-name").value.trim();
+  const email = document.getElementById("reg-email").value.trim();
+  const mobile_number = document.getElementById("reg-mobile").value.trim();
+  const password = document.getElementById("reg-password").value;
+  if (!full_name || !mobile_number || !password) {
+    errEl.textContent = "Full name, mobile number, and password are required."; return;
+  }
+  try {
+    const data = await api("/api/auth/register", { method: "POST", body: JSON.stringify({
+      role: "customer", full_name, email: email || undefined, mobile_number, password,
+    })});
+    TOKEN = data.access_token; ME = data.user;
+    PENDING_MOBILE = mobile_number;
+    showOtpStep(false);
+  } catch (e) { errEl.textContent = e.message; }
+}
+
+function showOtpStep(alreadySent) {
+  document.getElementById("auth-step-credentials").style.display = "none";
+  document.getElementById("auth-step-otp").style.display = "block";
+  document.getElementById("otp-hint").textContent = `We sent a 6-digit code to ${PENDING_MOBILE}.`;
+  if (!alreadySent) { /* registration already triggers a send server-side */ }
+}
+
+async function doVerifyOtp() {
+  const code = document.getElementById("otp-code").value.trim();
+  const errEl = document.getElementById("otp-error"); errEl.textContent = "";
+  if (code.length < 4) { errEl.textContent = "Enter the code."; return; }
+  try {
+    const data = await api("/api/auth/otp/verify", { method: "POST", body: JSON.stringify({ mobile_number: PENDING_MOBILE, otp: code }) });
+    TOKEN = data.access_token; ME = data.user;
+    enterApp();
+  } catch (e) { errEl.textContent = e.message; }
+}
+async function doResendOtp() {
+  try {
+    await api("/api/auth/otp/request", { method: "POST", body: JSON.stringify({ mobile_number: PENDING_MOBILE }) });
+    showToast("Code resent");
+  } catch (e) { showToast(e.message, true); }
+}
+
+async function enterApp() {
+  document.getElementById("auth-screen").style.display = "none";
+  document.getElementById("app").classList.add("active");
+  document.getElementById("topbar-avatar").textContent = (ME.full_name || "U").charAt(0).toUpperCase();
+  await loadHomeFeed();
+  navigate("home");
+}
+function logout() {
+  TOKEN = null; ME = null; CART = []; CART_STORE = null;
+  document.getElementById("app").classList.remove("active");
+  document.getElementById("auth-screen").style.display = "flex";
+  document.getElementById("auth-step-credentials").style.display = "block";
+  document.getElementById("auth-step-otp").style.display = "none";
+}
+
+// ------------------------------------------------------------- Navigation --
+function navigate(view) {
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.getElementById("view-" + view).classList.add("active");
+  if (TRACK_TIMER && view !== "tracking") { clearInterval(TRACK_TIMER); TRACK_TIMER = null; }
+  if (view === "orders") loadOrders();
+  if (view === "profile") loadProfile();
+  window.scrollTo(0, 0);
+}
+
+// -------------------------------------------------------------- Home feed --
+let USER_LAT = null, USER_LNG = null;
+
+function tryGetBrowserLocation() {
+  return new Promise(resolve => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { timeout: 4000 }
+    );
+  });
+}
+
+async function loadHomeFeed() {
+  const loc = await tryGetBrowserLocation();
+  if (loc) { USER_LAT = loc.lat; USER_LNG = loc.lng; }
+  document.getElementById("cat-scroll").innerHTML = `<div class="skeleton" style="width:76px;height:76px"></div>`.repeat(5);
+  document.getElementById("nearby-grid").innerHTML = storeSkeletons();
+  document.getElementById("popular-grid").innerHTML = storeSkeletons();
+  try {
+    const q = USER_LAT ? `?lat=${USER_LAT}&lng=${USER_LNG}` : "";
+    const data = await api("/api/customer/home" + q);
+    CATEGORIES = data.categories || [];
+    renderCategories();
+    renderStoreGrid("nearby-grid", data.nearby_stores || [], "No stores deliver to your area yet.");
+    renderStoreGrid("popular-grid", data.popular_stores || [], "No popular stores yet.");
+  } catch (e) { showToast(e.message, true); }
+}
+function storeSkeletons() { return `<div class="skeleton" style="height:150px"></div>`.repeat(4); }
+
+function renderCategories() {
+  document.getElementById("cat-scroll").innerHTML = CATEGORIES.map(c => `
+    <div class="cat-chip" onclick="filterByCategory(${c.id}, '${escapeHtml(c.name)}')">
+      <span class="material-symbols-rounded">${CATEGORY_ICONS[c.icon] || CATEGORY_ICONS.default}</span>
+      <span class="label">${escapeHtml(c.name)}</span>
+    </div>`).join("");
+}
+
+function renderStoreGrid(elId, stores, emptyMsg) {
+  const el = document.getElementById(elId);
+  el.innerHTML = stores.length ? stores.map(s => `
+    <div class="store-card" onclick="openStore(${s.id})">
+      <div class="cover">
+        ${s.cover_photo_url ? `<img src="${s.cover_photo_url}" onerror="this.style.display='none'">` : ""}
+        ${!s.is_open_now ? `<div class="closed-badge"><span>CLOSED</span></div>` : ""}
+      </div>
+      <div class="body">
+        <div class="name">${escapeHtml(s.name)}</div>
+        <div class="meta">
+          <span class="material-symbols-rounded" style="font-size:13px">star</span> ${(s.rating_average||0).toFixed(1)}
+          ${s.distance_km != null ? ` · ${s.distance_km} km` : ""}
+        </div>
+      </div>
+    </div>`).join("") : `<div class="empty-state" style="grid-column:1/-1"><span class="material-symbols-rounded">storefront</span><div>${emptyMsg}</div></div>`;
+}
+
+function filterByCategory(id, name) { searchStores(null, id, name); }
+
+async function searchStores(evt, categoryId, categoryName) {
+  const q = document.getElementById("store-search").value.trim();
+  navigate("search");
+  document.getElementById("search-title").textContent = categoryName ? categoryName : (q ? `Results for "${q}"` : "All stores");
+  document.getElementById("search-grid").innerHTML = storeSkeletons();
+  try {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (categoryId) params.set("category_id", categoryId);
+    const data = await api("/api/customer/stores/search?" + params.toString());
+    renderStoreGrid("search-grid", data.items || [], "No stores found.");
+  } catch (e) { showToast(e.message, true); }
+}
+
+// ----------------------------------------------------------- Store detail --
+async function openStore(id) {
+  navigate("store");
+  document.getElementById("store-hero").innerHTML = `<div class="skeleton" style="height:100%"></div>`;
+  document.getElementById("product-grid").innerHTML = storeSkeletons();
+  try {
+    const store = await api(`/api/customer/stores/${id}`);
+    CURRENT_STORE = store;
+    document.getElementById("store-hero").innerHTML = `
+      ${store.cover_photo_url ? `<img src="${store.cover_photo_url}">` : ""}
+      <div class="info">
+        <img src="${store.logo_url || '../assets/favicon.png'}" onerror="this.src='../assets/favicon.png'">
+        <div>
+          <div style="font-weight:700;font-size:14px">${escapeHtml(store.name)}
+            ${!store.is_open_now ? '<span class="chip cancelled" style="margin-left:6px">CLOSED</span>' : ''}
+          </div>
+          <div style="font-size:11px;color:var(--gray-600)">${escapeHtml(store.barangay || '')} · ★ ${(store.rating_average||0).toFixed(1)}</div>
+        </div>
+      </div>`;
+    const products = await api(`/api/customer/stores/${id}/products`);
+    _lastRenderedProducts = products;
+    renderProducts(products);
+  } catch (e) { showToast(e.message, true); }
+}
+
+function renderProducts(products) {
+  const el = document.getElementById("product-grid");
+  el.innerHTML = products.length ? products.map(p => {
+    const inCart = CART.find(c => c.product.id === p.id);
+    return `
+    <div class="product-card">
+      <div class="thumb">${p.images && p.images[0] ? `<img src="${p.images[0]}" onerror="this.style.display='none'">` : ""}</div>
+      <div class="body">
+        <div class="name">${escapeHtml(p.name)}</div>
+        <div class="price">${money(p.price)}</div>
+        ${inCart
+          ? `<div class="qty-row">
+              <button class="qty-btn" onclick="changeCartQty(${p.id},-1)">−</button>
+              <span style="font-weight:700;font-size:13px">${inCart.qty}</span>
+              <button class="qty-btn" onclick="changeCartQty(${p.id},1)">+</button>
+            </div>`
+          : `<button class="btn btn-outline btn-sm" style="width:100%;margin-top:8px" onclick="addToCart(${p.id})">Add to cart</button>`}
+      </div>
+    </div>`;
+  }).join("") : `<div class="empty-state" style="grid-column:1/-1"><span class="material-symbols-rounded">inventory_2</span><div>No products available right now.</div></div>`;
+}
+
+// ------------------------------------------------------------------ Cart --
+function addToCart(productId) {
+  if (!CURRENT_STORE) return;
+  if (CART_STORE && CART_STORE.id !== CURRENT_STORE.id && CART.length > 0) {
+    if (!confirm(`Your cart has items from ${CART_STORE.name}. Starting a new order here will clear it. Continue?`)) return;
+    CART = [];
+  }
+  CART_STORE = { id: CURRENT_STORE.id, name: CURRENT_STORE.name };
+  const product = _lastRenderedProducts.find(p => p.id === productId);
+  if (!product) return;
+  const existing = CART.find(c => c.product.id === productId);
+  if (existing) existing.qty += 1; else CART.push({ product, qty: 1 });
+  updateCartBadge();
+  renderProducts(_lastRenderedProducts);
+}
+let _lastRenderedProducts = [];
+
+function changeCartQty(productId, delta) {
+  const item = CART.find(c => c.product.id === productId);
+  if (!item) return;
+  item.qty += delta;
+  if (item.qty <= 0) CART = CART.filter(c => c.product.id !== productId);
+  updateCartBadge();
+  if (CURRENT_STORE) renderProducts(_lastRenderedProducts);
+  renderCartDrawer();
+}
+
+function updateCartBadge() {
+  const count = CART.reduce((sum, c) => sum + c.qty, 0);
+  const badge = document.getElementById("cart-badge");
+  badge.textContent = count;
+  badge.style.display = count > 0 ? "inline-block" : "none";
+}
+
+function cartSubtotal() { return CART.reduce((sum, c) => sum + c.product.price * c.qty, 0); }
+
+function openCart() {
+  renderCartDrawer();
+  document.getElementById("cart-drawer").classList.add("open");
+  document.getElementById("cart-overlay").classList.add("active");
+}
+function closeCart() {
+  document.getElementById("cart-drawer").classList.remove("open");
+  document.getElementById("cart-overlay").classList.remove("active");
+}
+function renderCartDrawer() {
+  const body = document.getElementById("cart-drawer-body");
+  body.innerHTML = CART.length ? CART.map(c => `
+    <div class="cart-item">
+      <div style="flex:1">
+        <div class="name">${escapeHtml(c.product.name)}</div>
+        <div class="price">${money(c.product.price)} × ${c.qty}</div>
+      </div>
+      <div class="qty-row" style="margin:0">
+        <button class="qty-btn" onclick="changeCartQty(${c.product.id},-1)">−</button>
+        <span style="font-weight:700;font-size:13px;width:20px;text-align:center">${c.qty}</span>
+        <button class="qty-btn" onclick="changeCartQty(${c.product.id},1)">+</button>
+      </div>
+    </div>`).join("") : `<div class="empty-state"><span class="material-symbols-rounded">shopping_cart</span><div>Your cart is empty.</div></div>`;
+  document.getElementById("cart-subtotal").textContent = money(cartSubtotal());
+  document.getElementById("checkout-btn").disabled = CART.length === 0;
+}
+
+async function goToCheckout() {
+  if (CART.length === 0) return;
+  closeCart();
+  navigate("checkout");
+  CURRENT_QUOTE = null;
+  renderCheckoutItems();
+  await loadCheckoutAddresses();
+  renderCheckoutPayment();
+}
+
+// -------------------------------------------------------------- Checkout --
+function renderCheckoutItems() {
+  document.getElementById("checkout-items").innerHTML = CART.map(c => `
+    <div class="summary-row"><span>${c.qty}× ${escapeHtml(c.product.name)}</span><span>${money(c.product.price * c.qty)}</span></div>
+  `).join("");
+  document.getElementById("cs-subtotal").textContent = money(cartSubtotal());
+  document.getElementById("cs-total").textContent = money(cartSubtotal());
+}
+
+async function loadCheckoutAddresses() {
+  const el = document.getElementById("checkout-addresses");
+  el.innerHTML = `<div class="skeleton" style="height:60px"></div>`;
+  try {
+    ADDRESSES = await api("/api/customer/addresses");
+    if (ADDRESSES.length && !SELECTED_ADDRESS) SELECTED_ADDRESS = ADDRESSES.find(a => a.is_default) || ADDRESSES[0];
+    renderAddressList();
+    if (SELECTED_ADDRESS) fetchQuote();
+  } catch (e) { showToast(e.message, true); }
+}
+
+function renderAddressList() {
+  const el = document.getElementById("checkout-addresses");
+  el.innerHTML = ADDRESSES.length ? ADDRESSES.map(a => `
+    <div class="addr-option ${SELECTED_ADDRESS && SELECTED_ADDRESS.id === a.id ? 'selected' : ''}" onclick="selectAddress(${a.id})">
+      <div style="font-weight:600;font-size:12.5px">${escapeHtml(a.label || 'Address')}</div>
+      <div style="font-size:11.5px;color:var(--gray-600)">${escapeHtml([a.street, a.barangay].filter(Boolean).join(', ') || 'No street details')}</div>
+    </div>`).join("") : `<div style="font-size:12px;color:var(--gray-600)">No saved addresses yet — add one below.</div>`;
+}
+
+function selectAddress(id) {
+  SELECTED_ADDRESS = ADDRESSES.find(a => a.id === id);
+  renderAddressList();
+  fetchQuote();
+}
+
+function renderCheckoutPayment() {
+  const methods = [
+    { value: "cod", label: "Cash on Delivery", icon: "payments" },
+    { value: "gcash", label: "GCash", icon: "account_balance_wallet" },
+    { value: "maya", label: "Maya", icon: "credit_card" },
+    { value: "wallet", label: "Pasugo Wallet", icon: "wallet" },
+  ];
+  document.getElementById("checkout-payment").innerHTML = methods.map(m => `
+    <div class="radio-row" onclick="selectPayment('${m.value}')">
+      <input type="radio" name="pm" ${PAYMENT_METHOD === m.value ? "checked" : ""} style="accent-color:var(--green)">
+      <span class="material-symbols-rounded" style="font-size:17px;color:var(--ink-2)">${m.icon}</span>
+      <span style="font-size:13px">${m.label}</span>
+    </div>`).join("");
+}
+function selectPayment(v) { PAYMENT_METHOD = v; renderCheckoutPayment(); }
+
+async function fetchQuote() {
+  if (!SELECTED_ADDRESS || CART.length === 0) return;
+  document.getElementById("cs-delivery").textContent = "…";
+  document.getElementById("cs-service").textContent = "…";
+  try {
+    const quote = await api("/api/orders/quote", { method: "POST", body: JSON.stringify({
+      order_type: "store_order",
+      store_id: CART_STORE.id,
+      items: CART.map(c => ({ product_id: c.product.id, quantity: c.qty })),
+      dropoff_address_id: SELECTED_ADDRESS.id,
+    })});
+    CURRENT_QUOTE = quote;
+    document.getElementById("cs-delivery").textContent = money(quote.delivery_fee);
+    document.getElementById("cs-service").textContent = money(quote.service_fee);
+    document.getElementById("cs-total").textContent = money(quote.total_amount);
+  } catch (e) {
+    document.getElementById("cs-delivery").textContent = "—";
+    document.getElementById("cs-service").textContent = "—";
+    showToast(e.message, true);
+  }
+}
+
+async function placeOrder() {
+  if (!SELECTED_ADDRESS) { showToast("Select a delivery address.", true); return; }
+  if (CART.length === 0) { showToast("Your cart is empty.", true); return; }
+  const btn = document.getElementById("place-order-btn");
+  btn.disabled = true; btn.textContent = "Placing order...";
+  try {
+    const promo = document.getElementById("checkout-promo").value.trim();
+    const notes = document.getElementById("checkout-notes").value.trim();
+    const order = await api("/api/orders", { method: "POST", body: JSON.stringify({
+      order_type: "store_order",
+      store_id: CART_STORE.id,
+      items: CART.map(c => ({ product_id: c.product.id, quantity: c.qty })),
+      dropoff_address_id: SELECTED_ADDRESS.id,
+      payment_method: PAYMENT_METHOD,
+      promo_code: promo || undefined,
+      delivery_notes: notes || undefined,
+    })});
+    CART = []; CART_STORE = null; updateCartBadge();
+    showToast("Order placed!");
+    openTracking(order.id);
+  } catch (e) {
+    if (e.errorCode === "MOBILE_NOT_VERIFIED") {
+      showToast("Verify your mobile number to place an order.", true);
+      navigate("profile");
+    } else {
+      showToast(e.message, true);
+    }
+  } finally {
+    btn.disabled = false; btn.textContent = "Place order";
+  }
+}
+
+// ------------------------------------------------------------ Add address --
+function openAddAddress() {
+  document.getElementById("modal-address").style.display = "flex";
+  setTimeout(() => {
+    const center = { lat: USER_LAT || 7.2544, lng: USER_LNG || 124.9200 };
+    ADDR_MAP = new google.maps.Map(document.getElementById("address-map"), { center, zoom: 15 });
+    ADDR_MARKER = new google.maps.Marker({ position: center, map: ADDR_MAP, draggable: true });
+    ADDR_MAP.addListener("click", e => ADDR_MARKER.setPosition(e.latLng));
+  }, 50);
+}
+function closeAddAddress() { document.getElementById("modal-address").style.display = "none"; }
+
+async function saveNewAddress() {
+  if (!ADDR_MARKER) { showToast("Pin a location on the map.", true); return; }
+  const pos = ADDR_MARKER.getPosition();
+  try {
+    const address = await api("/api/customer/addresses", { method: "POST", body: JSON.stringify({
+      label: document.getElementById("addr-label").value.trim() || "Address",
+      recipient_name: document.getElementById("addr-recipient").value.trim(),
+      contact_number: document.getElementById("addr-contact").value.trim(),
+      barangay: document.getElementById("addr-barangay").value.trim(),
+      street: document.getElementById("addr-street").value.trim(),
+      lat: pos.lat(), lng: pos.lng(),
+    })});
+    ADDRESSES.push(address);
+    if (document.getElementById("view-booking").classList.contains("active")) {
+      BK_ADDRESS = address;
+      renderBookingAddresses();
+      fetchBookingQuote();
+    } else {
+      SELECTED_ADDRESS = address;
+      renderAddressList();
+      fetchQuote();
+    }
+    closeAddAddress();
+    showToast("Address saved");
+  } catch (e) { showToast(e.message, true); }
+}
+
+// ------------------------------------------------------------- My orders --
+async function loadOrders() {
+  document.getElementById("orders-list").innerHTML = `<div class="skeleton" style="height:70px;margin-bottom:10px"></div>`.repeat(3);
+  try {
+    const orders = await api("/api/orders");
+    document.getElementById("orders-list").innerHTML = orders.length ? orders.map(o => `
+      <div class="card" style="cursor:pointer" onclick="openTracking(${o.id})">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:700;font-size:13.5px">#${o.order_number}</div>
+            <div style="font-size:11px;color:var(--gray-600)">${dt(o.placed_at)} · ${(o.order_type||'').replace('_',' ')}</div>
+          </div>
+          <div style="text-align:right">
+            ${chip(o.status)}
+            <div style="font-size:12.5px;font-weight:700;margin-top:4px">${money(o.total_amount)}</div>
+          </div>
+        </div>
+      </div>`).join("") : `<div class="empty-state"><span class="material-symbols-rounded">receipt_long</span><div>No orders yet — go place your first one!</div></div>`;
+  } catch (e) { showToast(e.message, true); }
+}
+
+// --------------------------------------------------------- Order tracking --
+const STATUS_FLOW = ["pending", "accepted", "picked_up", "on_the_way", "delivered"];
+const STATUS_LABELS = { pending: "Placed", accepted: "Confirmed", picked_up: "Picked up", on_the_way: "On the way", delivered: "Delivered" };
+
+function openTracking(id) {
+  TRACK_ORDER_ID = id;
+  navigate("tracking");
+  loadTrackingOrder(true);
+  if (TRACK_TIMER) clearInterval(TRACK_TIMER);
+  TRACK_TIMER = setInterval(() => loadTrackingOrder(false), 8000);
+}
+
+async function loadTrackingOrder(isFirstLoad) {
+  try {
+    const o = await api(`/api/orders/${TRACK_ORDER_ID}`);
+    document.getElementById("track-order-number").textContent = `Order #${o.order_number}`;
+    document.getElementById("track-order-meta").textContent = `${dt(o.placed_at)} · ${(o.order_type||'').replace('_',' ')}`;
+    document.getElementById("track-status-chip").innerHTML = chip(o.status);
+    renderStatusTrack(o.status);
+    renderTrackingMap(o);
+    renderRiderCard(o);
+    if (o.status === "delivered" || o.status === "cancelled") { clearInterval(TRACK_TIMER); TRACK_TIMER = null; }
+  } catch (e) { if (isFirstLoad) showToast(e.message, true); }
+}
+
+function renderStatusTrack(status) {
+  if (status === "cancelled") {
+    document.getElementById("status-track").innerHTML = `<div style="text-align:center;color:var(--red);font-weight:700;font-size:13px;width:100%">This order was cancelled.</div>`;
+    return;
+  }
+  const idx = STATUS_FLOW.indexOf(status === "shopping" ? "accepted" : status === "arrived" ? "on_the_way" : status);
+  document.getElementById("status-track").innerHTML = STATUS_FLOW.map((s, i) => `
+    <div class="status-step ${i <= idx ? 'done' : ''}"><div class="dot"></div><div class="label">${STATUS_LABELS[s]}</div></div>
+  `).join("");
+}
+
+function renderRiderCard(o) {
+  const el = document.getElementById("track-rider-card");
+  const d = o.delivery;
+  if (!d || !d.rider_id) { el.innerHTML = ""; return; }
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--gray-200)">
+      <div style="width:38px;height:38px;border-radius:50%;background:var(--green-tint);display:flex;align-items:center;justify-content:center">
+        <span class="material-symbols-rounded" style="color:var(--green-dark)">two_wheeler</span>
+      </div>
+      <div style="flex:1">
+        <div style="font-weight:700;font-size:13px">${escapeHtml(d.rider_name || 'Your rider')}</div>
+        <div style="font-size:11px;color:var(--gray-600)">${d.rider_vehicle_type ? d.rider_vehicle_type.replace('_',' ') : ''} ${d.rider_plate_number ? '· ' + d.rider_plate_number : ''}</div>
+      </div>
+      ${d.rider_mobile_number ? `<a href="tel:${d.rider_mobile_number}" class="btn btn-outline btn-sm"><span class="material-symbols-rounded" style="font-size:15px">call</span></a>` : ""}
+    </div>`;
+}
+
+function renderTrackingMap(o) {
+  const mapEl = document.getElementById("tracking-map");
+  const dropoff = o.dropoff_snapshot && o.dropoff_snapshot.lat ? { lat: o.dropoff_snapshot.lat, lng: o.dropoff_snapshot.lng } : null;
+  const pickup = o.store ? { lat: o.store.lat, lng: o.store.lng } : null;
+  const rider = o.delivery && o.delivery.current_lat ? { lat: o.delivery.current_lat, lng: o.delivery.current_lng } : null;
+  const points = [pickup, dropoff, rider].filter(Boolean);
+  if (points.length === 0) { mapEl.innerHTML = `<div class="empty-state"><span class="material-symbols-rounded">map</span><div>Map unavailable yet.</div></div>`; return; }
+
+  const center = rider || pickup || dropoff;
+  if (!TRACK_MAP || TRACK_MAP._orderId !== o.id) {
+    mapEl.innerHTML = "";
+    TRACK_MAP = new google.maps.Map(mapEl, { center, zoom: 14 });
+    TRACK_MAP._orderId = o.id;
+    TRACK_MAP._markers = {};
+  }
+  const setMarker = (key, pos, icon, size) => {
+    if (!pos) { if (TRACK_MAP._markers[key]) { TRACK_MAP._markers[key].setMap(null); delete TRACK_MAP._markers[key]; } return; }
+    if (TRACK_MAP._markers[key]) { TRACK_MAP._markers[key].setPosition(pos); }
+    else { TRACK_MAP._markers[key] = new google.maps.Marker({ position: pos, map: TRACK_MAP, icon: { url: icon, scaledSize: new google.maps.Size(size, size) } }); }
+  };
+  setMarker("pickup", pickup, "../assets/store_marker.png", 36);
+  setMarker("dropoff", dropoff, "../assets/dropoff_marker.png", 38);
+  setMarker("rider", rider, "../assets/rider_marker.png", 34);
+  if (rider) TRACK_MAP.panTo(rider);
+}
+
+// --------------------------------------------------------------- Profile --
+async function loadProfile() {
+  const el = document.getElementById("profile-card");
+  el.innerHTML = `<div class="skeleton" style="height:80px"></div>`;
+  try {
+    const user = await api("/api/customer/profile");
+    ME = user;
+    const verified = user.is_mobile_verified;
+    el.innerHTML = `
+      <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+        <div style="width:54px;height:54px;border-radius:50%;background:var(--green-tint);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px;color:var(--green-dark)">
+          ${(user.full_name || "U").charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:15px">${escapeHtml(user.full_name)}</div>
+          <div style="font-size:12px;color:var(--gray-600)">${escapeHtml(user.email || user.mobile_number || '')}</div>
+        </div>
+      </div>
+      <div style="padding:12px;background:${verified ? 'var(--green-tint-2)' : 'var(--amber-tint)'};border-radius:10px;display:flex;align-items:center;gap:8px">
+        <span class="material-symbols-rounded" style="font-size:18px;color:${verified ? 'var(--green-dark)' : 'var(--amber)'}">${verified ? 'verified' : 'warning'}</span>
+        <span style="font-size:12px;color:${verified ? 'var(--green-dark)' : '#92400E'}">
+          ${verified ? 'Mobile number verified.' : (user.mobile_number ? 'Mobile number not verified yet.' : 'No mobile number on file — required to place orders.')}
+        </span>
+      </div>
+      ${!verified ? `
+        <div style="margin-top:12px">
+          <input id="profile-mobile" placeholder="09XXXXXXXXX" value="${user.mobile_number || ''}" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:8px">
+          <button class="btn btn-primary btn-sm" onclick="updateAndVerifyMobile()">Save & send verification code</button>
+        </div>` : ""}
+    `;
+  } catch (e) { showToast(e.message, true); }
+}
+
+async function updateAndVerifyMobile() {
+  const mobile = document.getElementById("profile-mobile").value.trim();
+  if (!mobile) { showToast("Enter a mobile number.", true); return; }
+  try {
+    const result = await api("/api/customer/profile", { method: "PUT", body: JSON.stringify({ mobile_number: mobile }) });
+    if (result.otp_sent) {
+      PENDING_MOBILE = mobile;
+      document.getElementById("app").classList.remove("active");
+      document.getElementById("auth-screen").style.display = "flex";
+      document.getElementById("auth-step-credentials").style.display = "none";
+      showOtpStep(true);
+    } else {
+      showToast("Profile updated");
+      loadProfile();
+    }
+  } catch (e) { showToast(e.message, true); }
+}
+
+// ======================================================= BOOKING FLOWS ==
+// Pasabuy / Courier / Pa Angkas share the same pickup+dropoff+quote+submit
+// shape, so one dynamic view (rather than three near-duplicate ones)
+// handles all three, matching what the backend's /api/orders and
+// /api/orders/quote already support via order_type.
+let BK_TYPE = null;
+let BK_ITEMS = [];
+let BK_PICKUP_LAT = null, BK_PICKUP_LNG = null;
+let BK_PASSENGER_COUNT = 1;
+let BK_ADDRESS = null;
+let BK_PAYMENT = "cod";
+let BK_QUOTE = null;
+let PIN_MAP = null, PIN_MARKER = null;
+
+async function ensureAddressesLoaded() {
+  if (ADDRESSES.length) return;
+  try { ADDRESSES = await api("/api/customer/addresses"); } catch (e) {}
+}
+
+async function openBooking(type) {
+  BK_TYPE = type;
+  BK_ITEMS = [];
+  BK_PICKUP_LAT = null; BK_PICKUP_LNG = null;
+  BK_PASSENGER_COUNT = 1;
+  BK_PAYMENT = "cod";
+  BK_QUOTE = null;
+
+  document.getElementById("bk-pasabuy-fields").style.display = type === "pasabuy" ? "block" : "none";
+  document.getElementById("bk-courier-fields").style.display = type === "courier" ? "block" : "none";
+  document.getElementById("bk-angkas-fields").style.display = type === "pa_angkas" ? "block" : "none";
+
+  const titles = { pasabuy: "Pasabuy — Buy Anything", courier: "Book a courier", pa_angkas: "Pa Angkas" };
+  document.getElementById("booking-title").textContent = titles[type];
+  document.getElementById("bk-dropoff-label").textContent = type === "pa_angkas" ? "Drop-off (your destination)" : "Deliver to";
+  const pickupLabels = {
+    pasabuy: "Store location (optional — helps your rider find it)",
+    courier: "Pickup address",
+    pa_angkas: "Where should we pick you up?",
+  };
+  document.getElementById("bk-pickup-label").textContent = pickupLabels[type];
+  document.getElementById("bk-pickup-status").innerHTML = `<span class="material-symbols-rounded" style="font-size:16px;color:var(--green-dark)">my_location</span> Location not set yet`;
+  document.getElementById("bk-pickup-address").value = "";
+  document.getElementById("bk-delivery").textContent = "—";
+  document.getElementById("bk-service").textContent = "—";
+  document.getElementById("bk-total").textContent = "—";
+  document.getElementById("bk-summary-extra").innerHTML = "";
+
+  if (type === "pasabuy") {
+    addItemRow();
+    document.getElementById("bk-store-name").value = "";
+    document.getElementById("bk-budget").value = "";
+    document.getElementById("bk-instructions").value = "";
+  } else if (type === "courier") {
+    document.getElementById("bk-receiver-name").value = "";
+    document.getElementById("bk-receiver-number").value = "";
+    document.getElementById("bk-item-desc").value = "";
+    document.getElementById("bk-weight").value = "";
+  } else if (type === "pa_angkas") {
+    document.getElementById("bk-passenger-count").textContent = "1";
+    document.getElementById("bk-notes").value = "";
+  }
+
+  await ensureAddressesLoaded();
+  BK_ADDRESS = ADDRESSES.find(a => a.is_default) || ADDRESSES[0] || null;
+  renderBookingAddresses();
+  renderBookingPayment();
+  navigate("booking");
+}
+
+// ----- Pasabuy item rows -----
+function addItemRow() { BK_ITEMS.push({ item: "", qty: 1 }); renderItemRows(); }
+function removeItemRow(idx) { BK_ITEMS.splice(idx, 1); renderItemRows(); }
+function updateItemField(idx, field, value) { BK_ITEMS[idx][field] = value; }
+function renderItemRows() {
+  document.getElementById("bk-items-list").innerHTML = BK_ITEMS.map((it, i) => `
+    <div style="display:flex;gap:8px;margin-bottom:8px">
+      <input value="${escapeHtml(it.item)}" placeholder="e.g. Rice 2kg" oninput="updateItemField(${i},'item',this.value)" style="flex:3;padding:9px;border:1.5px solid var(--gray-200);border-radius:8px">
+      <input type="number" value="${it.qty}" min="1" oninput="updateItemField(${i},'qty',this.value)" style="flex:1;padding:9px;border:1.5px solid var(--gray-200);border-radius:8px">
+      ${BK_ITEMS.length > 1 ? `<button class="qty-btn" onclick="removeItemRow(${i})">×</button>` : ""}
+    </div>`).join("");
+}
+
+// ----- Pa Angkas passenger count -----
+function changePassengerCount(delta) {
+  BK_PASSENGER_COUNT = Math.max(1, Math.min(3, BK_PASSENGER_COUNT + delta));
+  document.getElementById("bk-passenger-count").textContent = BK_PASSENGER_COUNT;
+}
+
+// ----- Pickup location pin -----
+function openBookingMap() {
+  document.getElementById("modal-pin-picker").style.display = "flex";
+  setTimeout(() => {
+    const center = { lat: BK_PICKUP_LAT || USER_LAT || 7.2544, lng: BK_PICKUP_LNG || USER_LNG || 124.9200 };
+    PIN_MAP = new google.maps.Map(document.getElementById("pin-picker-map"), { center, zoom: 15 });
+    PIN_MARKER = new google.maps.Marker({ position: center, map: PIN_MAP, draggable: true });
+    PIN_MAP.addListener("click", e => PIN_MARKER.setPosition(e.latLng));
+  }, 50);
+}
+function closePinPicker() { document.getElementById("modal-pin-picker").style.display = "none"; }
+function confirmPinPicker() {
+  const pos = PIN_MARKER.getPosition();
+  BK_PICKUP_LAT = pos.lat(); BK_PICKUP_LNG = pos.lng();
+  document.getElementById("bk-pickup-status").innerHTML = `<span class="material-symbols-rounded" style="font-size:16px;color:var(--green-dark)">check_circle</span> Pickup location set`;
+  if (!document.getElementById("bk-pickup-address").value.trim()) {
+    document.getElementById("bk-pickup-address").value = `Pinned location (${BK_PICKUP_LAT.toFixed(5)}, ${BK_PICKUP_LNG.toFixed(5)})`;
+  }
+  closePinPicker();
+  fetchBookingQuote();
+}
+function useCurrentLocationForBooking() {
+  if (!navigator.geolocation) { showToast("Geolocation not supported on this browser.", true); return; }
+  navigator.geolocation.getCurrentPosition(pos => {
+    BK_PICKUP_LAT = pos.coords.latitude; BK_PICKUP_LNG = pos.coords.longitude;
+    document.getElementById("bk-pickup-status").innerHTML = `<span class="material-symbols-rounded" style="font-size:16px;color:var(--green-dark)">check_circle</span> Pickup location set`;
+    if (!document.getElementById("bk-pickup-address").value.trim()) {
+      document.getElementById("bk-pickup-address").value = `Current location (${BK_PICKUP_LAT.toFixed(5)}, ${BK_PICKUP_LNG.toFixed(5)})`;
+    }
+    showToast("Pickup location captured");
+    fetchBookingQuote();
+  }, () => showToast("Could not get your location.", true));
+}
+
+// ----- Dropoff address -----
+function renderBookingAddresses() {
+  const el = document.getElementById("bk-addresses");
+  el.innerHTML = ADDRESSES.length ? ADDRESSES.map(a => `
+    <div class="addr-option ${BK_ADDRESS && BK_ADDRESS.id === a.id ? 'selected' : ''}" onclick="selectBookingAddress(${a.id})">
+      <div style="font-weight:600;font-size:12.5px">${escapeHtml(a.label || 'Address')}</div>
+      <div style="font-size:11.5px;color:var(--gray-600)">${escapeHtml([a.street, a.barangay].filter(Boolean).join(', ') || 'No street details')}</div>
+    </div>`).join("") : `<div style="font-size:12px;color:var(--gray-600)">No saved addresses yet — add one below.</div>`;
+}
+function selectBookingAddress(id) {
+  BK_ADDRESS = ADDRESSES.find(a => a.id === id);
+  renderBookingAddresses();
+  fetchBookingQuote();
+}
+
+// ----- Payment -----
+function renderBookingPayment() {
+  const methods = [
+    { value: "cod", label: "Cash", icon: "payments" },
+    { value: "gcash", label: "GCash", icon: "account_balance_wallet" },
+    { value: "wallet", label: "Pasugo Wallet", icon: "wallet" },
+  ];
+  document.getElementById("bk-payment").innerHTML = methods.map(m => `
+    <div class="radio-row" onclick="selectBookingPayment('${m.value}')">
+      <input type="radio" name="bkpm" ${BK_PAYMENT === m.value ? "checked" : ""} style="accent-color:var(--green)">
+      <span class="material-symbols-rounded" style="font-size:17px;color:var(--ink-2)">${m.icon}</span>
+      <span style="font-size:13px">${m.label}</span>
+    </div>`).join("");
+}
+function selectBookingPayment(v) { BK_PAYMENT = v; renderBookingPayment(); }
+
+// ----- Live quote -----
+async function fetchBookingQuote() {
+  if (!BK_ADDRESS) return;
+  if (BK_TYPE === "pasabuy") {
+    const budget = parseFloat(document.getElementById("bk-budget").value);
+    if (!budget || budget <= 0) return;
+  } else if (BK_PICKUP_LAT == null) {
+    return;
+  }
+  document.getElementById("bk-delivery").textContent = "…";
+  document.getElementById("bk-service").textContent = "…";
+  try {
+    const body = { order_type: BK_TYPE, dropoff_address_id: BK_ADDRESS.id };
+    if (BK_TYPE === "pasabuy") {
+      body.pasabuy_budget = parseFloat(document.getElementById("bk-budget").value) || 0;
+      if (BK_PICKUP_LAT != null) { body.pasabuy_pickup_lat = BK_PICKUP_LAT; body.pasabuy_pickup_lng = BK_PICKUP_LNG; }
+    } else if (BK_TYPE === "courier") {
+      body.courier_pickup_lat = BK_PICKUP_LAT; body.courier_pickup_lng = BK_PICKUP_LNG;
+    } else if (BK_TYPE === "pa_angkas") {
+      body.angkas_pickup_lat = BK_PICKUP_LAT; body.angkas_pickup_lng = BK_PICKUP_LNG;
+    }
+    const quote = await api("/api/orders/quote", { method: "POST", body: JSON.stringify(body) });
+    BK_QUOTE = quote;
+    document.getElementById("bk-delivery").textContent = money(quote.delivery_fee);
+    document.getElementById("bk-service").textContent = money(quote.service_fee);
+    document.getElementById("bk-total").textContent = money(quote.total_amount);
+    document.getElementById("bk-summary-extra").innerHTML = BK_TYPE === "pasabuy"
+      ? `<div class="summary-row"><span>Budget (items)</span><span>${money(quote.subtotal)}</span></div>`
+      : `<div class="summary-row"><span>Distance</span><span>${quote.distance_km} km</span></div>`;
+  } catch (e) {
+    document.getElementById("bk-delivery").textContent = "—";
+    document.getElementById("bk-service").textContent = "—";
+  }
+}
+
+// ----- Submit -----
+async function submitBooking() {
+  if (!BK_ADDRESS) { showToast("Select a delivery address.", true); return; }
+  const btn = document.getElementById("bk-submit-btn");
+  btn.disabled = true;
+  try {
+    const body = { order_type: BK_TYPE, dropoff_address_id: BK_ADDRESS.id, payment_method: BK_PAYMENT };
+
+    if (BK_TYPE === "pasabuy") {
+      const storeName = document.getElementById("bk-store-name").value.trim();
+      const budget = parseFloat(document.getElementById("bk-budget").value);
+      const items = BK_ITEMS.filter(it => it.item.trim()).map(it => ({ item: it.item.trim(), qty: parseInt(it.qty) || 1 }));
+      if (!storeName) { showToast("Enter the store name.", true); btn.disabled = false; return; }
+      if (!items.length) { showToast("Add at least one item to buy.", true); btn.disabled = false; return; }
+      if (!budget || budget <= 0) { showToast("Enter a valid budget.", true); btn.disabled = false; return; }
+      body.pasabuy_store_name = storeName;
+      body.pasabuy_items = items;
+      body.pasabuy_budget = budget;
+      const instructions = document.getElementById("bk-instructions").value.trim();
+      if (instructions) body.pasabuy_special_instructions = instructions;
+      if (BK_PICKUP_LAT != null) { body.pasabuy_pickup_lat = BK_PICKUP_LAT; body.pasabuy_pickup_lng = BK_PICKUP_LNG; }
+
+    } else if (BK_TYPE === "courier") {
+      const pickupAddr = document.getElementById("bk-pickup-address").value.trim();
+      const receiverName = document.getElementById("bk-receiver-name").value.trim();
+      const receiverNumber = document.getElementById("bk-receiver-number").value.trim();
+      const itemDesc = document.getElementById("bk-item-desc").value.trim();
+      if (!pickupAddr || BK_PICKUP_LAT == null) { showToast("Set the pickup location.", true); btn.disabled = false; return; }
+      if (!receiverName || !receiverNumber || !itemDesc) { showToast("Fill in receiver details and item description.", true); btn.disabled = false; return; }
+      body.courier_pickup_address = pickupAddr;
+      body.courier_pickup_lat = BK_PICKUP_LAT; body.courier_pickup_lng = BK_PICKUP_LNG;
+      body.courier_receiver_name = receiverName;
+      body.courier_receiver_number = receiverNumber;
+      body.courier_item_description = itemDesc;
+      body.courier_package_size = document.getElementById("bk-package-size").value;
+      const weight = parseFloat(document.getElementById("bk-weight").value);
+      if (weight) body.courier_package_weight_kg = weight;
+
+    } else if (BK_TYPE === "pa_angkas") {
+      const pickupAddr = document.getElementById("bk-pickup-address").value.trim();
+      if (!pickupAddr || BK_PICKUP_LAT == null) { showToast("Set your pickup point.", true); btn.disabled = false; return; }
+      body.angkas_pickup_address = pickupAddr;
+      body.angkas_pickup_lat = BK_PICKUP_LAT; body.angkas_pickup_lng = BK_PICKUP_LNG;
+      body.angkas_passenger_count = BK_PASSENGER_COUNT;
+      const notes = document.getElementById("bk-notes").value.trim();
+      if (notes) body.angkas_notes = notes;
+    }
+
+    const order = await api("/api/orders", { method: "POST", body: JSON.stringify(body) });
+    showToast("Booking submitted!");
+    openTracking(order.id);
+  } catch (e) {
+    if (e.errorCode === "MOBILE_NOT_VERIFIED") {
+      showToast("Verify your mobile number to place an order.", true);
+      navigate("profile");
+    } else {
+      showToast(e.message, true);
+    }
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ============================================================= WALLET ==
+async function loadWallet() {
+  document.getElementById("wallet-balance").textContent = "…";
+  try {
+    const wallet = await api("/api/customer/wallet");
+    document.getElementById("wallet-balance").textContent = money(wallet.balance);
+    document.getElementById("wallet-points").textContent = `${wallet.loyalty_points || 0} loyalty points`;
+    const tx = wallet.transactions || [];
+    document.getElementById("wallet-transactions").innerHTML = tx.length ? tx.slice().reverse().map(t => `
+      <div class="card" style="display:flex;align-items:center;gap:10px;padding:12px;margin-bottom:8px">
+        <span class="material-symbols-rounded" style="color:${t.amount >= 0 ? 'var(--green-dark)' : 'var(--red)'}">${t.amount >= 0 ? 'arrow_downward' : 'arrow_upward'}</span>
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:12.5px">${(t.type || '').replace(/_/g, ' ')}</div>
+          ${t.description ? `<div style="font-size:10.5px;color:var(--gray-600)">${escapeHtml(t.description)}</div>` : ""}
+        </div>
+        <div style="font-weight:700;font-size:12.5px;color:${t.amount >= 0 ? 'var(--green-dark)' : 'var(--red)'}">${t.amount >= 0 ? '+' : ''}${money(t.amount)}</div>
+      </div>`).join("") : `<div class="empty-state"><span class="material-symbols-rounded">receipt_long</span><div>No transactions yet.</div></div>`;
+  } catch (e) { showToast(e.message, true); }
+}
+
+async function convertPoints() {
+  let available = 0;
+  try { const w = await api("/api/customer/wallet"); available = w.loyalty_points || 0; } catch (e) {}
+  if (available <= 0) { showToast("No points available to convert.", true); return; }
+  const input = prompt(`You have ${available} points. How many do you want to convert to wallet balance?`, available);
+  const points = parseInt(input);
+  if (!points || points <= 0) return;
+  try {
+    const result = await api("/api/customer/wallet/convert-points", { method: "POST", body: JSON.stringify({ points }) });
+    showToast(result.message || "Points converted");
+    loadWallet();
+  } catch (e) { showToast(e.message, true); }
+}
+</script>
+</body>
+</html>

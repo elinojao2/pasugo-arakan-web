@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pasugo Arakan — Admin Console</title>
+<link rel="icon" type="image/png" href="../assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Symbols+Rounded">
+<style>
+  :root{
+    --green:#16A34A; --green-dark:#15803D; --green-tint:#DCFCE7; --green-tint-2:#F0FDF4;
+    --white:#FFFFFF; --ink:#111827; --ink-2:#374151; --gray-600:#4B5563; --gray-400:#9CA3AF;
+    --gray-200:#E5E7EB; --gray-100:#F3F4F6; --gray-50:#F9FAFB;
+    --amber:#F59E0B; --amber-tint:#FEF3C7; --red:#DC2626; --red-tint:#FEE2E2; --blue:#3B82F6; --blue-tint:#DBEAFE;
+    --radius:16px; --radius-sm:10px; --shadow:0 1px 3px rgba(17,24,39,.06),0 8px 24px -8px rgba(17,24,39,.08);
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:'Poppins',sans-serif;background:var(--gray-50);color:var(--ink);}
+  ::-webkit-scrollbar{width:8px;height:8px;} ::-webkit-scrollbar-thumb{background:var(--gray-200);border-radius:8px;}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;}
+
+  /* ---------- Login ---------- */
+  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 20% 20%, #15803D 0%, #0F172A 55%, #0B1120 100%);padding:24px;}
+  .login-card{width:100%;max-width:400px;background:rgba(255,255,255,.98);border-radius:24px;padding:40px 36px;
+    box-shadow:0 30px 60px -20px rgba(0,0,0,.5);}
+  .login-brand{display:flex;align-items:center;gap:10px;margin-bottom:28px;}
+  .login-brand .mark{width:40px;height:40px;border-radius:12px;background:var(--green);display:flex;align-items:center;
+    justify-content:center;color:#fff;font-weight:800;font-size:18px;}
+  .login-brand .name{font-weight:700;font-size:18px;} .login-brand .sub{font-size:12px;color:var(--gray-600);}
+  .login-card h1{font-size:22px;font-weight:700;margin:0 0 4px;} .login-card p.hint{color:var(--gray-600);font-size:13px;margin:0 0 24px;}
+  .field{margin-bottom:16px;} .field label{display:block;font-size:12px;font-weight:600;color:var(--ink-2);margin-bottom:6px;}
+  .field input,.field select,.field textarea{width:100%;padding:11px 14px;border:1.5px solid var(--gray-200);border-radius:10px;
+    font-family:inherit;font-size:14px;background:var(--white);transition:.15s;}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px var(--green-tint);}
+  .btn{border:none;border-radius:10px;padding:11px 18px;font-weight:600;font-size:14px;display:inline-flex;align-items:center;
+    gap:6px;justify-content:center;transition:.15s;}
+  .btn-primary{background:var(--green);color:#fff;width:100%;} .btn-primary:hover{background:var(--green-dark);}
+  .btn-ghost{background:var(--gray-100);color:var(--ink-2);} .btn-ghost:hover{background:var(--gray-200);}
+  .btn-danger{background:var(--red-tint);color:var(--red);} .btn-danger:hover{background:#fecaca;}
+  .btn-sm{padding:7px 12px;font-size:12.5px;border-radius:8px;}
+  #login-error{color:var(--red);font-size:12.5px;margin-top:10px;min-height:16px;}
+  .login-demo{margin-top:20px;padding-top:18px;border-top:1px dashed var(--gray-200);font-size:11.5px;color:var(--gray-400);line-height:1.6;}
+
+  /* ---------- App shell ---------- */
+  #app{display:none;min-height:100vh;}
+  #app.active{display:flex;}
+  .sidebar{width:236px;flex-shrink:0;background:var(--ink);color:#E5E7EB;display:flex;flex-direction:column;padding:20px 14px;
+    position:sticky;top:0;height:100vh;}
+  .sidebar .brand{display:flex;align-items:center;gap:10px;padding:6px 10px 22px;}
+  .sidebar .brand .mark{width:34px;height:34px;border-radius:10px;background:var(--green);display:flex;align-items:center;
+    justify-content:center;color:#fff;font-weight:800;font-size:15px;flex-shrink:0;}
+  .sidebar .brand .name{font-weight:700;font-size:14.5px;color:#fff;} .sidebar .brand .sub{font-size:10.5px;color:#9CA3AF;}
+  .nav-group{margin-bottom:4px;}
+  .nav-label{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#6B7280;padding:14px 12px 6px;font-weight:600;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;font-size:13.5px;font-weight:500;
+    color:#D1D5DB;margin-bottom:2px;position:relative;}
+  .nav-item .material-symbols-rounded{font-size:19px;}
+  .nav-item:hover{background:#1F2937;color:#fff;}
+  .nav-item.active{background:var(--green);color:#fff;}
+  .nav-item .badge{margin-left:auto;background:var(--amber);color:#111;font-size:10px;font-weight:700;border-radius:20px;
+    padding:1px 7px;}
+  .sidebar-footer{margin-top:auto;padding:12px;border-top:1px solid #1F2937;display:flex;align-items:center;gap:10px;}
+  .avatar{width:32px;height:32px;border-radius:50%;background:var(--green-tint);color:var(--green-dark);display:flex;
+    align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+  .sidebar-footer .who{flex:1;min-width:0;} .sidebar-footer .who .n{font-size:12.5px;font-weight:600;color:#fff;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;} .sidebar-footer .who .r{font-size:10.5px;color:#9CA3AF;}
+  .sidebar-footer button{background:none;border:none;color:#9CA3AF;padding:6px;border-radius:8px;}
+  .sidebar-footer button:hover{background:#1F2937;color:#fff;}
+
+  .main{flex:1;min-width:0;}
+  .topbar{position:sticky;top:0;z-index:10;background:rgba(249,250,251,.85);backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);border-bottom:1px solid var(--gray-200);padding:16px 28px;display:flex;
+    align-items:center;justify-content:space-between;gap:16px;}
+  .topbar h1{font-size:19px;font-weight:700;margin:0;} .topbar .crumbs{font-size:12px;color:var(--gray-600);margin-top:2px;}
+  .topbar-actions{display:flex;align-items:center;gap:10px;}
+  .icon-btn{width:38px;height:38px;border-radius:10px;background:var(--white);border:1px solid var(--gray-200);
+    display:flex;align-items:center;justify-content:center;color:var(--ink-2);position:relative;}
+  .icon-btn:hover{background:var(--gray-100);}
+  .dot-alert{position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--red);
+    border:2px solid var(--white);}
+  .content{padding:24px 28px 60px;}
+
+  /* status pill signature element */
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11.5px;font-weight:600;
+    white-space:nowrap;}
+  .chip .pulse{width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .chip.pending{background:var(--amber-tint);color:#B45309;} .chip.pending .pulse{animation:pulse 1.4s infinite;}
+  .chip.accepted,.chip.shopping,.chip.picked_up,.chip.on_the_way,.chip.arrived,.chip.approved,.chip.processing,.chip.in_progress{
+    background:var(--blue-tint);color:#1D4ED8;}
+  .chip.delivered,.chip.completed,.chip.active,.chip.resolved,.chip.paid{background:var(--green-tint);color:var(--green-dark);}
+  .chip.cancelled,.chip.rejected,.chip.failed,.chip.suspended,.chip.closed{background:var(--red-tint);color:var(--red);}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(180,83,9,.5);}70%{box-shadow:0 0 0 6px rgba(180,83,9,0);}100%{box-shadow:0 0 0 0 rgba(180,83,9,0);}}
+
+  /* cards & grid */
+  .grid{display:grid;gap:16px;}
+  .grid.cols-4{grid-template-columns:repeat(4,1fr);} .grid.cols-3{grid-template-columns:repeat(3,1fr);}
+  .grid.cols-2{grid-template-columns:2fr 1fr;}
+  @media(max-width:1100px){.grid.cols-4{grid-template-columns:repeat(2,1fr);} .grid.cols-2,.grid.cols-3{grid-template-columns:1fr;}}
+  .card{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);}
+  .card h3{margin:0 0 4px;font-size:13px;font-weight:600;color:var(--gray-600);}
+  .stat{font-size:26px;font-weight:800;margin:2px 0;} .stat .unit{font-size:13px;font-weight:500;color:var(--gray-600);}
+  .stat-trend{font-size:11.5px;color:var(--green-dark);font-weight:600;display:flex;align-items:center;gap:3px;}
+  .stat-icon{width:38px;height:38px;border-radius:11px;background:var(--green-tint);color:var(--green-dark);display:flex;
+    align-items:center;justify-content:center;float:right;}
+  .section-title{display:flex;align-items:center;justify-content:space-between;margin:28px 0 12px;}
+  .section-title h2{font-size:16px;font-weight:700;margin:0;} .section-title .sub{font-size:12px;color:var(--gray-600);}
+
+  /* table */
+  .table-wrap{background:var(--white);border:1px solid var(--gray-200);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow);}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  thead th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--gray-600);
+    background:var(--gray-50);padding:12px 16px;border-bottom:1px solid var(--gray-200);font-weight:600;}
+  tbody td{padding:13px 16px;border-bottom:1px solid var(--gray-100);vertical-align:middle;}
+  tbody tr:last-child td{border-bottom:none;} tbody tr:hover{background:var(--gray-50);}
+  .cell-strong{font-weight:600;} .cell-sub{font-size:11.5px;color:var(--gray-600);}
+  .row-actions{display:flex;gap:6px;}
+  .empty-state{padding:60px 20px;text-align:center;color:var(--gray-600);}
+  .stat-tile{background:var(--gray-50);border-radius:10px;padding:10px 12px;}
+  .stat-label{font-size:10.5px;color:var(--gray-600);margin-bottom:2px;}
+  .stat-value{font-size:15px;font-weight:800;}
+  .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0;}
+  .empty-state .material-symbols-rounded{font-size:40px;color:var(--gray-400);margin-bottom:8px;}
+  .toolbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+  .search-box{position:relative;flex:1;min-width:220px;}
+  .search-box .material-symbols-rounded{position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:18px;color:var(--gray-400);}
+  .search-box input{width:100%;padding:9px 12px 9px 36px;border:1.5px solid var(--gray-200);border-radius:10px;font-size:13px;font-family:inherit;}
+  select.filter{padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:10px;font-size:13px;font-family:inherit;background:#fff;}
+
+  /* bar chart (no lib) */
+  .bars{display:flex;align-items:flex-end;gap:8px;height:140px;margin-top:10px;}
+  .bar{flex:1;background:linear-gradient(180deg,var(--green) 0%,var(--green-dark) 100%);border-radius:6px 6px 2px 2px;
+    position:relative;min-height:4px;}
+  .bar-labels{display:flex;gap:8px;margin-top:6px;} .bar-labels span{flex:1;text-align:center;font-size:10px;color:var(--gray-600);}
+
+  /* modal */
+  .modal-backdrop{position:fixed;inset:0;background:rgba(17,24,39,.5);backdrop-filter:blur(2px);display:none;
+    align-items:center;justify-content:center;z-index:100;padding:20px;}
+  .modal-backdrop.active{display:flex;}
+  .modal{background:#fff;border-radius:18px;width:100%;max-width:440px;padding:26px;box-shadow:0 30px 60px -12px rgba(0,0,0,.35);}
+  .modal h3{margin:0 0 4px;font-size:17px;} .modal p.desc{font-size:12.5px;color:var(--gray-600);margin:0 0 18px;}
+  .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+
+  .toast-stack{position:fixed;bottom:20px;right:20px;z-index:200;display:flex;flex-direction:column;gap:8px;}
+  .toast{background:var(--ink);color:#fff;padding:12px 16px;border-radius:10px;font-size:13px;box-shadow:var(--shadow);
+    display:flex;align-items:center;gap:8px;animation:slideIn .2s ease-out;}
+  .toast.err{background:var(--red);}
+  @keyframes slideIn{from{transform:translateY(10px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+
+  .skeleton{background:linear-gradient(90deg,var(--gray-100) 25%,var(--gray-200) 37%,var(--gray-100) 63%);
+    background-size:400% 100%;animation:shimmer 1.4s infinite;border-radius:8px;}
+  @keyframes shimmer{0%{background-position:100% 50%;}100%{background-position:0 50%;}}
+
+  .view{display:none;} .view.active{display:block;}
+  .settings-row{display:flex;align-items:center;justify-content:space-between;padding:14px 0;border-bottom:1px solid var(--gray-100);}
+  .settings-row:last-child{border-bottom:none;}
+  .settings-row .lbl{font-weight:600;font-size:13.5px;} .settings-row .desc{font-size:11.5px;color:var(--gray-600);margin-top:2px;}
+  .settings-row input{width:130px;padding:8px 10px;border:1.5px solid var(--gray-200);border-radius:8px;font-family:inherit;text-align:right;}
+</style>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCHRnRqAWrk4giJEaXw7zd8jyYwgFFLIKA"></script>
+</head>
+<body>
+
+<!-- ============================= LOGIN ============================= -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-brand">
+      <img src="../assets/favicon.png" alt="Pasugo Arakan" class="mark" style="object-fit:contain;background:transparent">
+      <div><div class="name">Pasugo Arakan</div><div class="sub">Admin Console</div></div>
+    </div>
+    <h1>Sign in</h1>
+    <p class="hint">Manage riders, merchants, orders, and platform settings.</p>
+    <div class="field"><label>API base URL</label><input id="api-base" placeholder="https://your-app.pythonanywhere.com" value=""></div>
+    <div class="field"><label>Email or mobile number</label><input id="login-id" placeholder="admin@pasugoarakan.ph"></div>
+    <div class="field"><label>Password</label><input id="login-pass" type="password" placeholder="••••••••"></div>
+    <button class="btn btn-primary" onclick="doLogin()"><span class="material-symbols-rounded" style="font-size:18px">login</span> Sign in</button>
+    <div id="login-error"></div>
+    <div class="login-demo">
+      Point "API base URL" at your deployed Flask backend (e.g. PythonAnywhere URL) from the Pasugo Arakan backend project.
+      No account yet? Create the first admin directly in your database, or via <code>POST /api/admin/admins</code> once logged in as one.
+    </div>
+  </div>
+</div>
+
+<!-- ============================= APP ============================= -->
+<div id="app">
+  <aside class="sidebar">
+    <div class="brand"><img src="../assets/favicon.png" alt="Pasugo Arakan" class="mark" style="object-fit:contain;background:transparent"><div><div class="name">Pasugo Arakan</div><div class="sub">Admin Console</div></div></div>
+
+    <div class="nav-group">
+      <div class="nav-item active" data-view="overview"><span class="material-symbols-rounded">bar_chart</span>Overview</div>
+      <div class="nav-item" data-view="orders"><span class="material-symbols-rounded">receipt_long</span>Orders</div>
+      <div class="nav-item" data-view="live-map"><span class="material-symbols-rounded">location_on</span>Live Riders</div>
+    </div>
+    <div class="nav-label">Approvals</div>
+    <div class="nav-group">
+      <div class="nav-item" data-view="riders"><span class="material-symbols-rounded">two_wheeler</span>Riders<span class="badge" id="badge-riders" style="display:none">0</span></div>
+      <div class="nav-item" data-view="merchants"><span class="material-symbols-rounded">storefront</span>Merchants<span class="badge" id="badge-merchants" style="display:none">0</span></div>
+    </div>
+    <div class="nav-label">Platform</div>
+    <div class="nav-group">
+      <div class="nav-item" data-view="users"><span class="material-symbols-rounded">group</span>Users</div>
+      <div class="nav-item" data-view="categories"><span class="material-symbols-rounded">category</span>Categories</div>
+      <div class="nav-item" data-view="promos"><span class="material-symbols-rounded">sell</span>Promo Codes</div>
+      <div class="nav-item" data-view="withdrawals"><span class="material-symbols-rounded">payments</span>Withdrawals</div>
+      <div class="nav-item" data-view="support"><span class="material-symbols-rounded">support_agent</span>Support Tickets</div>
+    </div>
+    <div class="nav-label">System</div>
+    <div class="nav-group">
+      <div class="nav-item" data-view="settings"><span class="material-symbols-rounded">tune</span>Settings</div>
+      <div class="nav-item" data-view="audit"><span class="material-symbols-rounded">history</span>Audit Log</div>
+    </div>
+
+    <div class="sidebar-footer">
+      <div class="avatar" id="user-avatar">A</div>
+      <div class="who"><div class="n" id="user-name">Admin</div><div class="r">Administrator</div></div>
+      <button onclick="logout()" title="Sign out"><span class="material-symbols-rounded">logout</span></button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <div><h1 id="page-title">Overview</h1><div class="crumbs" id="page-crumb">Platform performance at a glance</div></div>
+      <div class="topbar-actions">
+        <button class="icon-btn" onclick="refreshCurrentView()" title="Refresh"><span class="material-symbols-rounded">refresh</span></button>
+        <button class="icon-btn" onclick="showToast('Broadcast composer would open here — see Settings for now.')" title="Notify users">
+          <span class="material-symbols-rounded">campaign</span>
+        </button>
+      </div>
+    </div>
+    <div class="content" id="content">
+      <!-- ---------------- OVERVIEW ---------------- -->
+      <div class="view active" id="view-overview">
+        <div class="grid cols-4" id="overview-stats"></div>
+        <div class="grid cols-2" style="margin-top:16px">
+          <div class="card">
+            <h3>Orders — last 7 days</h3>
+            <div class="bars" id="orders-chart"></div>
+            <div class="bar-labels" id="orders-chart-labels"></div>
+          </div>
+          <div class="card">
+            <h3>Most ordered this month</h3>
+            <div id="top-products" style="margin-top:10px"></div>
+          </div>
+        </div>
+        <div class="section-title"><h2>Pending approvals</h2><div class="sub" id="pending-approvals-sub"></div></div>
+        <div class="grid cols-2" id="pending-approvals-grid"></div>
+      </div>
+
+      <!-- ---------------- ORDERS ---------------- -->
+      <div class="view" id="view-orders">
+        <div class="toolbar">
+          <div class="search-box"><span class="material-symbols-rounded">search</span><input placeholder="Search order number..." id="orders-search" oninput="renderOrdersTable()"></div>
+          <select class="filter" id="orders-status-filter" onchange="loadOrders()">
+            <option value="">All statuses</option>
+            <option value="pending">Pending</option><option value="accepted">Accepted</option>
+            <option value="shopping">Shopping</option><option value="picked_up">Picked up</option>
+            <option value="on_the_way">On the way</option><option value="arrived">Arrived</option>
+            <option value="delivered">Delivered</option><option value="cancelled">Cancelled</option>
+          </select>
+          <select class="filter" id="orders-type-filter" onchange="loadOrders()">
+            <option value="">All types</option><option value="store_order">Store order</option>
+            <option value="pasabuy">Pasabuy</option><option value="courier">Courier</option>
+          </select>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Order #</th><th>Type</th><th>Store</th><th>Total</th><th>Payment</th><th>Status</th><th>Placed</th></tr></thead>
+          <tbody id="orders-tbody"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ---------------- LIVE MAP ---------------- -->
+      <div class="view" id="view-live-map">
+        <div id="live-map-canvas" style="width:100%;height:420px;border-radius:16px;border:1px solid var(--gray-200);margin-bottom:16px;background:var(--gray-50)"></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Rider</th><th>Status</th><th>Latitude</th><th>Longitude</th><th>Last update</th></tr></thead>
+          <tbody id="live-map-tbody"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ---------------- RIDERS ---------------- -->
+      <div class="view" id="view-riders">
+        <div class="section-title"><h2>Pending rider applications</h2></div>
+        <div id="riders-pending-list" class="grid cols-3"></div>
+      </div>
+
+      <!-- ---------------- MERCHANTS ---------------- -->
+      <div class="view" id="view-merchants">
+        <div class="section-title"><h2>Pending merchant applications</h2></div>
+        <div id="merchants-pending-list" class="grid cols-3"></div>
+      </div>
+
+      <!-- ---------------- USERS ---------------- -->
+      <div class="view" id="view-users">
+        <div class="toolbar">
+          <div class="search-box"><span class="material-symbols-rounded">search</span><input placeholder="Search name, email, mobile..." id="users-search"></div>
+          <select class="filter" id="users-role-filter" onchange="loadUsers()">
+            <option value="">All roles</option><option value="customer">Customers</option>
+            <option value="rider">Riders</option><option value="merchant">Merchants</option><option value="admin">Admins</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="loadUsers()"><span class="material-symbols-rounded" style="font-size:16px">search</span> Search</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Name</th><th>Role</th><th>Contact</th><th>Status</th><th>Joined</th><th></th></tr></thead>
+          <tbody id="users-tbody"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ---------------- CATEGORIES ---------------- -->
+      <div class="view" id="view-categories">
+        <div class="toolbar">
+          <div style="flex:1"></div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-category')"><span class="material-symbols-rounded" style="font-size:16px">add</span> New category</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Icon</th><th>Name</th><th>Status</th></tr></thead>
+          <tbody id="categories-tbody"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ---------------- PROMOS ---------------- -->
+      <div class="view" id="view-promos">
+        <div class="toolbar">
+          <div style="flex:1"></div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-promo')"><span class="material-symbols-rounded" style="font-size:16px">add</span> New promo code</button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Min. order</th><th>Status</th><th>Valid until</th></tr></thead>
+          <tbody id="promos-tbody"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ---------------- WITHDRAWALS ---------------- -->
+      <div class="view" id="view-withdrawals">
+        <div class="toolbar">
+          <select class="filter" id="withdrawals-status-filter" onchange="loadWithdrawals()">
+            <option value="pending">Pending</option><option value="completed">Completed</option><option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Amount</th><th>Method</th><th>Status</th><th>Requested</th><th></th></tr></thead>
+          <tbody id="withdrawals-tbody"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ---------------- SUPPORT ---------------- -->
+      <div class="view" id="view-support">
+        <div class="toolbar">
+          <select class="filter" id="support-status-filter" onchange="loadTickets()">
+            <option value="">All</option><option value="open">Open</option><option value="in_progress">In progress</option>
+            <option value="resolved">Resolved</option><option value="closed">Closed</option>
+          </select>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Subject</th><th>Category</th><th>Priority</th><th>Status</th><th>Opened</th><th></th></tr></thead>
+          <tbody id="support-tbody"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ---------------- SETTINGS ---------------- -->
+      <div class="view" id="view-settings">
+        <div class="card">
+          <h3 style="margin-bottom:6px">Delivery &amp; fees</h3>
+          <div class="settings-row"><div><div class="lbl">Base delivery fee</div><div class="desc">First kilometer, in PHP</div></div><input id="s-base-fee" value="20.00"></div>
+          <div class="settings-row"><div><div class="lbl">Per-km delivery fee</div><div class="desc">Each km beyond the first</div></div><input id="s-per-km" value="8.00"></div>
+          <div class="settings-row"><div><div class="lbl">Service fee (%)</div><div class="desc">Applied to order subtotal</div></div><input id="s-service-pct" value="5"></div>
+          <div class="settings-row"><div><div class="lbl">Platform commission (%)</div><div class="desc">Default cut from merchant sales</div></div><input id="s-commission-pct" value="15"></div>
+          <div class="settings-row"><div><div class="lbl">Minimum withdrawal</div><div class="desc">Riders &amp; merchants, in PHP</div></div><input id="s-min-withdraw" value="200"></div>
+          <div class="settings-row"><div><div class="lbl">Loyalty points rate</div><div class="desc">PHP spent per 1 point earned (lower = points earned faster)</div></div><input id="s-loyalty-threshold" value="50"></div>
+          <div class="settings-row"><div><div class="lbl">Loyalty point value</div><div class="desc">PHP credited to wallet per point converted</div></div><input id="s-loyalty-value" value="1.00"></div>
+          <div style="margin-top:16px;text-align:right"><button class="btn btn-primary btn-sm" onclick="saveSettings()">Save changes</button></div>
+        </div>
+      </div>
+
+      <!-- ---------------- AUDIT LOG ---------------- -->
+      <div class="view" id="view-audit">
+        <div class="table-wrap"><table>
+          <thead><tr><th>Action</th><th>Target</th><th>Actor (user id)</th><th>When</th></tr></thead>
+          <tbody id="audit-tbody"></tbody>
+        </table></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================= MODALS ============================= -->
+<div class="modal-backdrop" id="modal-reject">
+  <div class="modal">
+    <h3 id="reject-modal-title">Reject application</h3>
+    <p class="desc">This will notify the applicant and record the reason.</p>
+    <div class="field"><label>Reason</label><textarea id="reject-reason" rows="3" placeholder="e.g. Incomplete documents"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-reject')">Cancel</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmReject()">Confirm rejection</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-rider-profile">
+  <div class="modal">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:4px">
+      <img id="rp-avatar" src="" alt="" style="width:48px;height:48px;border-radius:50%;object-fit:cover;background:var(--gray-100)">
+      <div style="flex:1">
+        <h3 id="rp-name" style="margin:0">Rider</h3>
+        <div id="rp-meta" style="font-size:11.5px;color:var(--gray-600)"></div>
+      </div>
+    </div>
+    <div id="rp-status" style="margin:8px 0 4px"></div>
+    <div id="rp-vehicle" style="font-size:12px;color:var(--gray-600);margin-bottom:10px"></div>
+
+    <div class="stat-grid" id="rp-stats"></div>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--green-tint-2);border-radius:10px;padding:12px 14px;margin-bottom:10px">
+      <span style="font-size:12px;color:var(--gray-600)">Wallet balance</span>
+      <span id="rp-wallet-balance" style="font-size:17px;font-weight:800;color:var(--green-dark)"></span>
+    </div>
+
+    <div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Recent earnings</div>
+    <div id="rp-transactions" style="max-height:180px;overflow-y:auto"></div>
+
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-rider-profile')">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-category">
+  <div class="modal">
+    <h3>New category</h3>
+    <div class="field"><label>Name</label><input id="cat-name" placeholder="e.g. Water Refilling"></div>
+    <div class="field"><label>Material icon name</label><input id="cat-icon" placeholder="e.g. water_drop"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-category')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="createCategory()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-promo">
+  <div class="modal">
+    <h3>New platform promo code</h3>
+    <div class="field"><label>Code</label><input id="promo-code" placeholder="e.g. WELCOME50"></div>
+    <div class="field"><label>Discount type</label>
+      <select id="promo-type"><option value="percent">Percent off</option><option value="fixed">Fixed amount off</option><option value="free_delivery">Free delivery</option></select>
+    </div>
+    <div class="field"><label>Discount value</label><input id="promo-value" placeholder="e.g. 50"></div>
+    <div class="field"><label>Minimum order amount</label><input id="promo-min" placeholder="e.g. 200"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-promo')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="createPromo()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-stack" id="toast-stack"></div>
+
+<script>
+/* ===================================================================
+   Pasugo Arakan — Admin Console
+   Vanilla JS SPA. No build step: open index.html directly, or deploy
+   as a static site (Netlify drag-and-drop, GitHub Pages, etc).
+   =================================================================== */
+
+let API_BASE = "";
+let TOKEN = null;
+let ME = null;
+let pendingRejectAction = null; // {type:'rider'|'merchant', id}
+
+// ---------------------------------------------------------------- API --
+async function api(path, options = {}) {
+  const res = await fetch(API_BASE.replace(/\/$/, "") + path, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(TOKEN ? { Authorization: "Bearer " + TOKEN } : {}),
+      ...(options.headers || {}),
+    },
+  });
+  let data = null;
+  try { data = await res.json(); } catch (e) { /* no body */ }
+  if (!res.ok) throw new Error((data && data.message) || `Request failed (${res.status})`);
+  return data;
+}
+
+// -------------------------------------------------------------- Toast --
+function showToast(msg, isErr = false) {
+  const el = document.createElement("div");
+  el.className = "toast" + (isErr ? " err" : "");
+  el.innerHTML = `<span class="material-symbols-rounded" style="font-size:18px">${isErr ? "error" : "check_circle"}</span>${msg}`;
+  document.getElementById("toast-stack").appendChild(el);
+  setTimeout(() => el.remove(), 4000);
+}
+
+// -------------------------------------------------------------- Modals --
+function openModal(id) { document.getElementById(id).classList.add("active"); }
+function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+
+// --------------------------------------------------------------- Auth --
+async function doLogin() {
+  const base = document.getElementById("api-base").value.trim();
+  const id = document.getElementById("login-id").value.trim();
+  const pass = document.getElementById("login-pass").value;
+  const errEl = document.getElementById("login-error");
+  errEl.textContent = "";
+  if (!base) { errEl.textContent = "Enter your API base URL."; return; }
+  if (!id || !pass) { errEl.textContent = "Enter your email/mobile and password."; return; }
+
+  API_BASE = base;
+  try {
+    const body = id.includes("@") ? { email: id, password: pass } : { mobile_number: id, password: pass };
+    const data = await api("/api/auth/login", { method: "POST", body: JSON.stringify(body) });
+    if (data.user.role !== "admin") throw new Error("This account is not an admin account.");
+    TOKEN = data.access_token;
+    ME = data.user;
+    enterApp();
+  } catch (e) {
+    errEl.textContent = e.message;
+  }
+}
+
+function enterApp() {
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("app").classList.add("active");
+  document.getElementById("user-name").textContent = ME.full_name;
+  document.getElementById("user-avatar").textContent = (ME.full_name || "A").charAt(0).toUpperCase();
+  navigate("overview");
+  loadBadges();
+}
+
+function logout() {
+  TOKEN = null; ME = null;
+  document.getElementById("app").classList.remove("active");
+  document.getElementById("login-screen").style.display = "flex";
+  document.getElementById("login-pass").value = "";
+}
+
+// ------------------------------------------------------------ Routing --
+const loaders = {
+  overview: loadOverview,
+  orders: loadOrders,
+  "live-map": loadLiveMap,
+  riders: loadPendingRiders,
+  merchants: loadPendingMerchants,
+  users: loadUsers,
+  categories: loadCategories,
+  promos: loadPromos,
+  withdrawals: loadWithdrawals,
+  support: loadTickets,
+  settings: loadSettings,
+  audit: loadAuditLog,
+};
+const titles = {
+  overview: ["Overview", "Platform performance at a glance"],
+  orders: ["Orders", "Every order across the platform"],
+  "live-map": ["Live Riders", "Real-time rider locations feed"],
+  riders: ["Rider Approvals", "Review documents before activating riders"],
+  merchants: ["Merchant Approvals", "Review store details before going live"],
+  users: ["Users", "Customers, riders, merchants, and admins"],
+  categories: ["Categories", "Storefront browsing categories"],
+  promos: ["Promo Codes", "Platform-wide discounts"],
+  withdrawals: ["Withdrawals", "Rider and merchant cash-out requests"],
+  support: ["Support Tickets", "Complaints, refunds, and lost items"],
+  settings: ["Settings", "Fees, commissions, and platform defaults"],
+  audit: ["Audit Log", "Every sensitive admin action, recorded"],
+};
+
+let currentView = "overview";
+let _liveMapRefreshTimer = null;
+function navigate(view) {
+  currentView = view;
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.view === view));
+  document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+  document.getElementById("view-" + view).classList.add("active");
+  document.getElementById("page-title").textContent = titles[view][0];
+  document.getElementById("page-crumb").textContent = titles[view][1];
+  loaders[view] && loaders[view]();
+
+  clearInterval(_liveMapRefreshTimer);
+  if (view === "live-map") {
+    _liveMapRefreshTimer = setInterval(loadLiveMap, 10000);
+  }
+}
+function refreshCurrentView() { loaders[currentView] && loaders[currentView](); showToast("Refreshed"); }
+document.querySelectorAll(".nav-item").forEach(n => n.addEventListener("click", () => navigate(n.dataset.view)));
+
+async function loadBadges() {
+  try {
+    const [riders, merchants] = await Promise.all([
+      api("/api/admin/riders/pending"), api("/api/admin/merchants/pending"),
+    ]);
+    setBadge("badge-riders", riders.length);
+    setBadge("badge-merchants", merchants.length);
+  } catch (e) { /* silent on dashboard chrome */ }
+}
+function setBadge(id, n) {
+  const el = document.getElementById(id);
+  if (n > 0) { el.style.display = "inline-block"; el.textContent = n; } else { el.style.display = "none"; }
+}
+
+// ------------------------------------------------------------ Helpers --
+function chip(status) {
+  const label = (status || "").replace(/_/g, " ");
+  return `<span class="chip ${status}"><span class="pulse"></span>${label}</span>`;
+}
+function money(n) { return "₱" + Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 }); }
+function dt(iso) { if (!iso) return "—"; const d = new Date(iso); return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+function skeletonRows(cols, rows = 4) {
+  return Array.from({ length: rows }).map(() =>
+    `<tr>${Array.from({ length: cols }).map(() => `<td><div class="skeleton" style="height:14px;width:80%"></div></td>`).join("")}</tr>`
+  ).join("");
+}
+
+// ------------------------------------------------------------ Overview --
+async function loadOverview() {
+  document.getElementById("overview-stats").innerHTML = statSkeletons(4);
+  try {
+    const a = await api("/api/admin/analytics/overview");
+    document.getElementById("overview-stats").innerHTML = `
+      ${statCard("group", "Total customers", a.total_customers, "")}
+      ${statCard("two_wheeler", "Active riders", a.total_riders, "")}
+      ${statCard("payments", "Revenue today", money(a.revenue_today), "")}
+      ${statCard("timer", "Avg. delivery time", (a.average_delivery_minutes ?? "—") + " min", "")}
+    `;
+    document.getElementById("top-products").innerHTML = a.most_ordered_products_this_month.length
+      ? a.most_ordered_products_this_month.map(p => `
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-100);font-size:13px">
+          <span>${escapeHtml(p.product_name)}</span><span class="cell-strong">${p.quantity} sold</span>
+        </div>`).join("")
+      : `<div class="cell-sub" style="padding:16px 0">No delivered orders yet this month.</div>`;
+
+    // simple bar chart placeholder using revenue_today/this_month spread evenly (illustrative until a /analytics/daily endpoint exists)
+    const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+    const base = Math.max(a.revenue_today, 1);
+    const chartEl = document.getElementById("orders-chart");
+    const labelsEl = document.getElementById("orders-chart-labels");
+    chartEl.innerHTML = days.map((d,i) => {
+      const h = Math.round(30 + Math.random()*70);
+      return `<div class="bar" style="height:${h}%" title="${d}"></div>`;
+    }).join("");
+    labelsEl.innerHTML = days.map(d => `<span>${d}</span>`).join("");
+
+    document.getElementById("pending-approvals-sub").textContent =
+      `${a.total_riders} riders · ${a.total_merchants} merchants total on platform`;
+  } catch (e) { showToast(e.message, true); }
+
+  try {
+    const [riders, merchants] = await Promise.all([
+      api("/api/admin/riders/pending"), api("/api/admin/merchants/pending"),
+    ]);
+    setBadge("badge-riders", riders.length); setBadge("badge-merchants", merchants.length);
+    const grid = document.getElementById("pending-approvals-grid");
+    grid.innerHTML = `
+      <div class="card">
+        <h3>Riders awaiting approval</h3>
+        <div class="stat">${riders.length}</div>
+        <a href="#" onclick="navigate('riders');return false;" style="font-size:12.5px;color:var(--green-dark);font-weight:600">Review applications →</a>
+      </div>
+      <div class="card">
+        <h3>Merchants awaiting approval</h3>
+        <div class="stat">${merchants.length}</div>
+        <a href="#" onclick="navigate('merchants');return false;" style="font-size:12.5px;color:var(--green-dark);font-weight:600">Review applications →</a>
+      </div>`;
+  } catch (e) { /* handled elsewhere */ }
+}
+function statSkeletons(n) {
+  return Array.from({ length: n }).map(() => `<div class="card"><div class="skeleton" style="height:14px;width:60%;margin-bottom:10px"></div><div class="skeleton" style="height:26px;width:40%"></div></div>`).join("");
+}
+function statCard(icon, label, value, trend) {
+  return `<div class="card"><div class="stat-icon"><span class="material-symbols-rounded">${icon}</span></div>
+    <h3>${label}</h3><div class="stat">${value}</div>${trend ? `<div class="stat-trend">${trend}</div>` : ""}</div>`;
+}
+
+// -------------------------------------------------------------- Orders --
+let ORDERS_CACHE = [];
+async function loadOrders() {
+  document.getElementById("orders-tbody").innerHTML = skeletonRows(7);
+  try {
+    const status = document.getElementById("orders-status-filter").value;
+    const type = document.getElementById("orders-type-filter").value;
+    const qs = new URLSearchParams();
+    if (status) qs.set("status", status);
+    if (type) qs.set("order_type", type);
+    qs.set("per_page", "50");
+    const data = await api("/api/admin/orders?" + qs.toString());
+    ORDERS_CACHE = data.items;
+    renderOrdersTable();
+  } catch (e) {
+    document.getElementById("orders-tbody").innerHTML = `<tr><td colspan="7"><div class="empty-state"><span class="material-symbols-rounded">error</span><div>${escapeHtml(e.message)}</div></div></td></tr>`;
+  }
+}
+function renderOrdersTable() {
+  const q = (document.getElementById("orders-search").value || "").toLowerCase();
+  const rows = ORDERS_CACHE.filter(o => !q || o.order_number.toLowerCase().includes(q));
+  document.getElementById("orders-tbody").innerHTML = rows.length ? rows.map(o => `
+    <tr>
+      <td class="cell-strong">${o.order_number}</td>
+      <td>${o.order_type.replace("_"," ")}</td>
+      <td>${o.store ? escapeHtml(o.store.name) : "—"}</td>
+      <td class="cell-strong">${money(o.total_amount)}</td>
+      <td style="text-transform:uppercase;font-size:11px">${o.payment_method}</td>
+      <td>${chip(o.status)}</td>
+      <td class="cell-sub">${dt(o.placed_at)}</td>
+    </tr>`).join("") : `<tr><td colspan="7"><div class="empty-state"><span class="material-symbols-rounded">inbox</span><div>No orders match these filters.</div></div></td></tr>`;
+}
+
+// ------------------------------------------------------------ Live map --
+let _liveMap = null;
+let _liveMapMarkers = [];
+
+async function loadLiveMap() {
+  document.getElementById("live-map-tbody").innerHTML = skeletonRows(5);
+  try {
+    const riders = await api("/api/admin/riders/live-locations");
+    document.getElementById("live-map-tbody").innerHTML = riders.length ? riders.map(r => `
+      <tr><td class="cell-strong"><a href="#" onclick="openRiderProfile(${r.rider_id});return false" style="color:var(--green-dark);text-decoration:none">${escapeHtml(r.name)}</a></td>
+        <td>${r.on_delivery ? chip("on_the_way") : chip("active")}</td>
+        <td>${r.lat.toFixed(5)}</td><td>${r.lng.toFixed(5)}</td><td class="cell-sub">${dt(r.last_update)}</td></tr>`
+    ).join("") : `<tr><td colspan="5"><div class="empty-state"><span class="material-symbols-rounded">location_off</span><div>No riders online right now.</div></div></td></tr>`;
+
+    renderLiveMap(riders);
+  } catch (e) { showToast(e.message, true); }
+}
+
+function renderLiveMap(riders) {
+  const canvas = document.getElementById("live-map-canvas");
+  if (typeof google === "undefined" || !google.maps) {
+    canvas.innerHTML = `<div style="height:100%;display:flex;align-items:center;justify-content:center;color:var(--gray-600);font-size:12.5px">Google Maps failed to load — check your API key and internet connection.</div>`;
+    return;
+  }
+
+  const center = riders.length
+    ? { lat: riders[0].lat, lng: riders[0].lng }
+    : { lat: 7.2544, lng: 124.9200 }; // Arakan, North Cotabato fallback
+
+  if (!_liveMap) {
+    _liveMap = new google.maps.Map(canvas, { center, zoom: 13, mapId: "PASUGO_LIVE_MAP" });
+  }
+
+  _liveMapMarkers.forEach(m => m.setMap(null));
+  _liveMapMarkers = riders.map(r => {
+    const marker = new google.maps.Marker({
+      position: { lat: r.lat, lng: r.lng },
+      map: _liveMap,
+      title: r.name,
+      icon: {
+        url: "../assets/rider_marker.png",
+        scaledSize: new google.maps.Size(36, 36),
+        anchor: new google.maps.Point(18, 18),
+      },
+    });
+    const info = new google.maps.InfoWindow({
+      content: `<div style="font-family:Poppins,sans-serif;font-size:12.5px"><strong>${escapeHtml(r.name)}</strong><br>
+        <span style="color:${r.on_delivery ? "#3B82F6" : "#16A34A"};font-weight:600">${r.on_delivery ? "● On delivery" : "● Available"}</span></div>`,
+    });
+    marker.addListener("click", () => info.open(_liveMap, marker));
+    return marker;
+  });
+
+  if (riders.length > 1) {
+    const bounds = new google.maps.LatLngBounds();
+    riders.forEach(r => bounds.extend({ lat: r.lat, lng: r.lng }));
+    _liveMap.fitBounds(bounds);
+  } else if (riders.length === 1) {
+    _liveMap.setCenter({ lat: riders[0].lat, lng: riders[0].lng });
+  }
+}
+
+async function openRiderProfile(riderId) {
+  try {
+    const r = await api(`/api/admin/riders/${riderId}`);
+    document.getElementById("rp-name").textContent = r.full_name || "Rider";
+    document.getElementById("rp-avatar").src = r.profile_picture_url || "../assets/rider_marker.png";
+    document.getElementById("rp-meta").textContent = [r.mobile_number, r.email].filter(Boolean).join(" · ");
+    document.getElementById("rp-status").innerHTML = chip(r.approval_status) + (r.is_online ? ` <span style="margin-left:6px;color:var(--green-dark);font-size:11px;font-weight:600">● Online</span>` : "");
+    document.getElementById("rp-vehicle").textContent = r.vehicle ? `${r.vehicle.vehicle_type || ""} ${r.vehicle.plate_number ? "· " + r.vehicle.plate_number : ""}`.trim() : "No vehicle on file";
+
+    document.getElementById("rp-stats").innerHTML = `
+      <div class="stat-tile"><div class="stat-label">Rating</div><div class="stat-value">${(r.rating_average ?? 0).toFixed(1)} ★</div></div>
+      <div class="stat-tile"><div class="stat-label">Deliveries</div><div class="stat-value">${r.total_deliveries ?? 0}</div></div>
+      <div class="stat-tile"><div class="stat-label">Acceptance</div><div class="stat-value">${r.acceptance_rate != null ? Math.round(r.acceptance_rate * 100) + "%" : "—"}</div></div>
+      <div class="stat-tile"><div class="stat-label">Completion</div><div class="stat-value">${r.completion_rate != null ? Math.round(r.completion_rate * 100) + "%" : "—"}</div></div>
+    `;
+
+    document.getElementById("rp-wallet-balance").textContent = money(r.wallet_balance || 0);
+    const tx = r.transactions || [];
+    document.getElementById("rp-transactions").innerHTML = tx.length
+      ? tx.map(t => `<div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-bottom:1px solid var(--gray-100)">
+          <span>${escapeHtml(t.description || t.type)}</span>
+          <span style="font-weight:700;color:${t.amount >= 0 ? 'var(--green-dark)' : '#DC2626'}">${t.amount >= 0 ? "+" : ""}${money(t.amount)}</span>
+        </div>`).join("")
+      : `<div style="font-size:12px;color:var(--gray-600)">No earnings yet.</div>`;
+
+    openModal("modal-rider-profile");
+  } catch (e) { showToast(e.message, true); }
+}
+
+// ------------------------------------------------------ Rider approvals --
+async function loadPendingRiders() {
+  const grid = document.getElementById("riders-pending-list");
+  grid.innerHTML = statSkeletons(3);
+  try {
+    const riders = await api("/api/admin/riders/pending");
+    setBadge("badge-riders", riders.length);
+    grid.innerHTML = riders.length ? riders.map(r => `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div class="cell-strong" style="font-size:15px">${escapeHtml(r.full_name)}</div>
+          <div class="cell-sub">${escapeHtml(r.mobile_number || "")}</div></div>
+          ${chip("pending")}
+        </div>
+        <div style="margin:12px 0;font-size:12.5px;color:var(--gray-600)">
+          Documents uploaded: ${r.documents.length ? r.documents.map(d => d.document_type.replace(/_/g," ")).join(", ") : "none yet"}
+        </div>
+        <div class="row-actions">
+          <button class="btn btn-primary btn-sm" onclick="approveRider(${r.id})"><span class="material-symbols-rounded" style="font-size:15px">check</span> Approve</button>
+          <button class="btn btn-danger btn-sm" onclick="openRejectModal('rider', ${r.id})"><span class="material-symbols-rounded" style="font-size:15px">close</span> Reject</button>
+        </div>
+      </div>`).join("") : emptyCard("verified", "No pending rider applications.");
+  } catch (e) { showToast(e.message, true); }
+}
+async function approveRider(id) {
+  try { await api(`/api/admin/riders/${id}/approve`, { method: "POST" }); showToast("Rider approved"); loadPendingRiders(); loadBadges(); }
+  catch (e) { showToast(e.message, true); }
+}
+
+// --------------------------------------------------- Merchant approvals --
+async function loadPendingMerchants() {
+  const grid = document.getElementById("merchants-pending-list");
+  grid.innerHTML = statSkeletons(3);
+  try {
+    const merchants = await api("/api/admin/merchants/pending");
+    setBadge("badge-merchants", merchants.length);
+    grid.innerHTML = merchants.length ? merchants.map(m => `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div class="cell-strong" style="font-size:15px">${escapeHtml(m.business_name)}</div>
+          <div class="cell-sub">Owner: ${escapeHtml(m.owner_name)}</div></div>
+          ${chip("pending")}
+        </div>
+        <div style="margin:12px 0;font-size:12.5px;color:var(--gray-600)">
+          ${m.stores.length} store(s) submitted · ${escapeHtml(m.mobile_number || m.email || "")}
+        </div>
+        <div class="row-actions">
+          <button class="btn btn-primary btn-sm" onclick="approveMerchant(${m.id})"><span class="material-symbols-rounded" style="font-size:15px">check</span> Approve</button>
+          <button class="btn btn-danger btn-sm" onclick="openRejectModal('merchant', ${m.id})"><span class="material-symbols-rounded" style="font-size:15px">close</span> Reject</button>
+        </div>
+      </div>`).join("") : emptyCard("verified", "No pending merchant applications.");
+  } catch (e) { showToast(e.message, true); }
+}
+async function approveMerchant(id) {
+  try { await api(`/api/admin/merchants/${id}/approve`, { method: "POST" }); showToast("Merchant approved"); loadPendingMerchants(); loadBadges(); }
+  catch (e) { showToast(e.message, true); }
+}
+function emptyCard(icon, msg) {
+  return `<div class="card empty-state" style="grid-column:1/-1"><span class="material-symbols-rounded">${icon}</span><div>${msg}</div></div>`;
+}
+
+function openRejectModal(type, id) { pendingRejectAction = { type, id }; document.getElementById("reject-reason").value = ""; openModal("modal-reject"); }
+async function confirmReject() {
+  const reason = document.getElementById("reject-reason").value.trim();
+  const { type, id } = pendingRejectAction;
+  try {
+    await api(`/api/admin/${type}s/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) });
+    showToast((type === "rider" ? "Rider" : "Merchant") + " application rejected");
+    closeModal("modal-reject");
+    type === "rider" ? loadPendingRiders() : loadPendingMerchants();
+    loadBadges();
+  } catch (e) { showToast(e.message, true); }
+}
+
+// --------------------------------------------------------------- Users --
+async function loadUsers() {
+  document.getElementById("users-tbody").innerHTML = skeletonRows(6);
+  try {
+    const role = document.getElementById("users-role-filter").value;
+    const q = document.getElementById("users-search").value.trim();
+    const qs = new URLSearchParams(); if (role) qs.set("role", role); if (q) qs.set("q", q); qs.set("per_page", "50");
+    const data = await api("/api/admin/users?" + qs.toString());
+    document.getElementById("users-tbody").innerHTML = data.items.length ? data.items.map(u => `
+      <tr>
+        <td class="cell-strong">${escapeHtml(u.full_name)}</td>
+        <td style="text-transform:capitalize">${u.role}</td>
+        <td class="cell-sub">${escapeHtml(u.email || u.mobile_number || "—")}</td>
+        <td>${u.is_suspended ? chip("suspended") : chip("active")}</td>
+        <td class="cell-sub">${dt(u.created_at)}</td>
+        <td class="row-actions">
+          ${u.is_suspended
+            ? `<button class="btn btn-ghost btn-sm" onclick="unsuspendUser(${u.id})">Unsuspend</button>`
+            : `<button class="btn btn-danger btn-sm" onclick="suspendUser(${u.id})">Suspend</button>`}
+        </td>
+      </tr>`).join("") : `<tr><td colspan="6"><div class="empty-state"><span class="material-symbols-rounded">person_off</span><div>No users match.</div></div></td></tr>`;
+  } catch (e) { showToast(e.message, true); }
+}
+async function suspendUser(id) {
+  const reason = prompt("Reason for suspension:", "Policy violation");
+  if (reason === null) return;
+  try { await api(`/api/admin/users/${id}/suspend`, { method: "POST", body: JSON.stringify({ reason }) }); showToast("User suspended"); loadUsers(); }
+  catch (e) { showToast(e.message, true); }
+}
+async function unsuspendUser(id) {
+  try { await api(`/api/admin/users/${id}/unsuspend`, { method: "POST" }); showToast("User reinstated"); loadUsers(); }
+  catch (e) { showToast(e.message, true); }
+}
+
+// ----------------------------------------------------------- Categories --
+async function loadCategories() {
+  document.getElementById("categories-tbody").innerHTML = skeletonRows(3);
+  try {
+    const cats = await api("/api/admin/categories");
+    document.getElementById("categories-tbody").innerHTML = cats.length ? cats.map(c => `
+      <tr><td><span class="material-symbols-rounded" style="color:var(--green-dark)">${c.icon || "category"}</span></td>
+      <td class="cell-strong">${escapeHtml(c.name)}</td><td>${chip("active")}</td></tr>`).join("")
+      : `<tr><td colspan="3"><div class="empty-state"><span class="material-symbols-rounded">category</span><div>No categories yet.</div></div></td></tr>`;
+  } catch (e) { showToast(e.message, true); }
+}
+async function createCategory() {
+  const name = document.getElementById("cat-name").value.trim();
+  const icon = document.getElementById("cat-icon").value.trim();
+  if (!name) { showToast("Name is required", true); return; }
+  try {
+    await api("/api/admin/categories", { method: "POST", body: JSON.stringify({ name, icon }) });
+    showToast("Category created"); closeModal("modal-category"); loadCategories();
+  } catch (e) { showToast(e.message, true); }
+}
+
+// --------------------------------------------------------------- Promos --
+async function loadPromos() {
+  document.getElementById("promos-tbody").innerHTML = skeletonRows(4);
+  try {
+    const promos = await api("/api/admin/promo-codes");
+    document.getElementById("promos-tbody").innerHTML = promos.length ? promos.map(p => `
+      <tr><td class="cell-strong">${p.code}</td><td style="text-transform:capitalize">${p.discount_type.replace("_"," ")}</td>
+      <td>${p.discount_type === "free_delivery" ? "Free delivery" : (p.discount_type === "percent" ? p.discount_value + "%" : money(p.discount_value))}</td>
+      <td>${money(p.min_order_amount)}</td><td>${p.is_active ? chip("active") : chip("cancelled")}</td>
+      <td class="cell-sub">${p.valid_until ? dt(p.valid_until) : "No expiry"}</td></tr>`).join("")
+      : `<tr><td colspan="6"><div class="empty-state"><span class="material-symbols-rounded">sell</span><div>No promo codes yet.</div></div></td></tr>`;
+  } catch (e) { showToast(e.message, true); }
+}
+async function createPromo() {
+  const code = document.getElementById("promo-code").value.trim();
+  const discount_type = document.getElementById("promo-type").value;
+  const discount_value = document.getElementById("promo-value").value;
+  const min_order_amount = document.getElementById("promo-min").value || 0;
+  if (!code) { showToast("Code is required", true); return; }
+  try {
+    await api("/api/admin/promo-codes", { method: "POST", body: JSON.stringify({ code, discount_type, discount_value, min_order_amount }) });
+    showToast("Promo code created"); closeModal("modal-promo"); loadPromos();
+  } catch (e) { showToast(e.message, true); }
+}
+
+// ---------------------------------------------------------- Withdrawals --
+async function loadWithdrawals() {
+  document.getElementById("withdrawals-tbody").innerHTML = skeletonRows(4);
+  try {
+    const status = document.getElementById("withdrawals-status-filter").value;
+    const list = await api("/api/admin/withdrawals?status=" + status);
+    document.getElementById("withdrawals-tbody").innerHTML = list.length ? list.map(w => `
+      <tr><td class="cell-strong">${money(w.amount)}</td><td style="text-transform:uppercase;font-size:11px">${w.method}</td>
+      <td>${chip(w.status)}</td><td class="cell-sub">${dt(w.requested_at)}</td>
+      <td class="row-actions">
+        ${w.status === "pending" ? `
+          <button class="btn btn-primary btn-sm" onclick="completeWithdrawal(${w.id})">Mark paid</button>
+          <button class="btn btn-danger btn-sm" onclick="rejectWithdrawal(${w.id})">Reject</button>` : ""}
+      </td></tr>`).join("")
+      : `<tr><td colspan="5"><div class="empty-state"><span class="material-symbols-rounded">payments</span><div>No withdrawals here.</div></div></td></tr>`;
+  } catch (e) { showToast(e.message, true); }
+}
+async function completeWithdrawal(id) {
+  try { await api(`/api/admin/withdrawals/${id}/complete`, { method: "POST" }); showToast("Marked as paid"); loadWithdrawals(); }
+  catch (e) { showToast(e.message, true); }
+}
+async function rejectWithdrawal(id) {
+  const reason = prompt("Reason for rejecting this withdrawal:", "Could not verify account details");
+  if (reason === null) return;
+  try { await api(`/api/admin/withdrawals/${id}/reject`, { method: "POST", body: JSON.stringify({ reason }) }); showToast("Withdrawal rejected and refunded to wallet"); loadWithdrawals(); }
+  catch (e) { showToast(e.message, true); }
+}
+
+// -------------------------------------------------------- Support tickets --
+async function loadTickets() {
+  document.getElementById("support-tbody").innerHTML = skeletonRows(5);
+  try {
+    const status = document.getElementById("support-status-filter").value;
+    const qs = status ? "?status=" + status : "";
+    const tickets = await api("/api/admin/support-tickets" + qs);
+    document.getElementById("support-tbody").innerHTML = tickets.length ? tickets.map(t => `
+      <tr><td class="cell-strong">${escapeHtml(t.subject)}</td><td style="text-transform:capitalize">${t.category.replace("_"," ")}</td>
+      <td style="text-transform:capitalize">${t.priority}</td><td>${chip(t.status)}</td><td class="cell-sub">${dt(t.created_at)}</td>
+      <td class="row-actions">${t.status !== "resolved" && t.status !== "closed" ? `<button class="btn btn-primary btn-sm" onclick="resolveTicket(${t.id})">Resolve</button>` : ""}</td></tr>`).join("")
+      : `<tr><td colspan="6"><div class="empty-state"><span class="material-symbols-rounded">support_agent</span><div>No tickets here.</div></div></td></tr>`;
+  } catch (e) { showToast(e.message, true); }
+}
+async function resolveTicket(id) {
+  const notes = prompt("Resolution notes:", "Resolved — refund processed.");
+  if (notes === null) return;
+  try { await api(`/api/admin/support-tickets/${id}/resolve`, { method: "POST", body: JSON.stringify({ resolution_notes: notes }) }); showToast("Ticket resolved"); loadTickets(); }
+  catch (e) { showToast(e.message, true); }
+}
+
+// ------------------------------------------------------------- Settings --
+async function loadSettings() {
+  try {
+    const s = await api("/api/admin/settings");
+    // Falls back to each field's current HTML value (the .env-backed
+    // default) when a key hasn't been explicitly saved yet — matches
+    // get_platform_setting()'s own fallback behavior on the backend.
+    const set = (id, key, transform) => {
+      if (s[key] === undefined) return;
+      const el = document.getElementById(id);
+      el.value = transform ? transform(s[key]) : s[key];
+    };
+    set("s-base-fee", "base_delivery_fee");
+    set("s-per-km", "per_km_delivery_fee");
+    set("s-service-pct", "service_fee_percent", v => (v * 100).toString());
+    set("s-commission-pct", "platform_commission_percent", v => (v * 100).toString());
+    set("s-min-withdraw", "min_withdrawal_amount");
+    set("s-loyalty-threshold", "loyalty_earn_threshold_php");
+    set("s-loyalty-value", "loyalty_point_value_php");
+  } catch (e) { showToast(e.message, true); }
+}
+
+async function saveSettings() {
+  const values = {
+    base_delivery_fee: parseFloat(document.getElementById("s-base-fee").value),
+    per_km_delivery_fee: parseFloat(document.getElementById("s-per-km").value),
+    service_fee_percent: parseFloat(document.getElementById("s-service-pct").value) / 100,
+    platform_commission_percent: parseFloat(document.getElementById("s-commission-pct").value) / 100,
+    min_withdrawal_amount: parseFloat(document.getElementById("s-min-withdraw").value),
+    loyalty_earn_threshold_php: parseFloat(document.getElementById("s-loyalty-threshold").value),
+    loyalty_point_value_php: parseFloat(document.getElementById("s-loyalty-value").value),
+  };
+  try {
+    await Promise.all(Object.entries(values).map(([key, value]) =>
+      api(`/api/admin/settings/${key}`, { method: "PUT", body: JSON.stringify({ value }) })
+    ));
+    showToast("Settings saved and now live across the platform.");
+  } catch (e) { showToast(e.message, true); }
+}
+
+// ------------------------------------------------------------- Audit log --
+async function loadAuditLog() {
+  document.getElementById("audit-tbody").innerHTML = skeletonRows(4);
+  try {
+    const data = await api("/api/admin/audit-logs?per_page=50");
+    document.getElementById("audit-tbody").innerHTML = data.items.length ? data.items.map(a => `
+      <tr><td class="cell-strong" style="text-transform:capitalize">${a.action.replace(/_/g," ")}</td>
+      <td class="cell-sub">${a.target_type ? a.target_type + " #" + a.target_id : "—"}</td>
+      <td class="cell-sub">${a.actor_user_id ?? "system"}</td><td class="cell-sub">${dt(a.created_at)}</td></tr>`).join("")
+      : `<tr><td colspan="4"><div class="empty-state"><span class="material-symbols-rounded">history</span><div>No actions recorded yet.</div></div></td></tr>`;
+  } catch (e) { showToast(e.message, true); }
+}
+
+// -------------------------------------------------------------- Utility --
+function escapeHtml(str) {
+  return String(str ?? "").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m]));
+}
+
+// Allow pressing Enter in the login form
+document.getElementById("login-pass").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+</script>
+</body>
+</html>
