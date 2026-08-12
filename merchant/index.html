@@ -480,7 +480,7 @@ let TOKEN = null;
 // ⚠️ CONFIGURE THIS — used only for the "Download the app" links (separate
 // from the API base URL field above, which a merchant types in to log in
 // and could point anywhere). Same backend address as the landing page.
-const APK_BASE = "http://192.168.1.13:5000";
+const APK_BASE = "https://api.pasugoarakan.com";
 
 async function checkMerchantApkAvailability() {
   try {
@@ -689,6 +689,7 @@ async function loadStores() {
     if (!STORES.length) {
       sel.innerHTML = `<option>No stores yet</option>`;
       ACTIVE_STORE = null;
+      populateStoreForm(null);
       return;
     }
     sel.innerHTML = STORES.map(s => `<option value="${s.id}">${escapeHtml(s.name)} ${s.is_approved ? "" : "(pending)"}</option>`).join("");
@@ -734,7 +735,9 @@ function toggleDayClosed(key) {
 function collectBusinessHours() {
   const result = {};
   WEEKDAYS.forEach(([key]) => {
-    const closed = document.querySelector(`.hours-closed-toggle[data-day="${key}"]`).checked;
+    const toggle = document.querySelector(`.hours-closed-toggle[data-day="${key}"]`);
+    if (!toggle) { result[key] = null; return; } // editor never rendered — default to closed rather than crash
+    const closed = toggle.checked;
     result[key] = closed ? null : [document.getElementById(`hours-${key}-open`).value, document.getElementById(`hours-${key}-close`).value];
   });
   return result;
