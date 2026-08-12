@@ -163,8 +163,13 @@
 
   /* ---------------- FOOTER ---------------- */
   footer{background:var(--ink);color:#fff;padding:56px 0 26px;margin-top:24px;}
-  .foot-grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:40px;}
+  .foot-grid{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:32px;}
   @media(max-width:720px){ .foot-grid{grid-template-columns:1fr;gap:28px;} }
+
+  .contact-links{display:flex;flex-direction:column;align-items:flex-start;gap:10px;}
+  .btn-text-link{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:600;color:rgba(255,255,255,.85);}
+  .btn-text-link:hover{color:#fff;}
+  .btn-text-link .material-symbols-rounded{opacity:.8;}
   .foot-brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:15px;margin-bottom:10px;}
   .foot-brand img{width:32px;height:32px;object-fit:contain;}
   footer p{font-size:12.5px;color:#94A3B8;max-width:280px;}
@@ -261,7 +266,7 @@
         <a href="#join" class="btn btn-outline">Sumali bilang Rider</a>
       </div>
       <div class="hero-trust">
-        <div><span class="material-symbols-rounded">location_on</span> Serving in Arakan and nearby Municipality</div>
+        <div><span class="material-symbols-rounded">location_on</span> Serving all barangays in Arakan</div>
         <div><span class="material-symbols-rounded">payments</span> Cash, GCash, or Wallet</div>
         <div><span class="material-symbols-rounded">verified_user</span> Verified local riders</div>
       </div>
@@ -400,15 +405,23 @@
     <div class="join-grid">
       <div class="join-card rider">
         <span class="material-symbols-rounded big">two_wheeler</span>
-        <h3>Maging Rider</h3>
-        <p>Earn on your own schedule delivering around Arakan. Download the Rider app, submit your documents, and start accepting orders once approved.</p>
-        <a href="#" id="rider-apk-link" class="btn btn-white" onclick="return false">Download Rider App <span class="rider-apk-sub-text" style="font-size:10px;opacity:.7;margin-left:4px">checking...</span></a>
+        <h3>Want to be a Pasugo Arakan rider?</h3>
+        <p>Earn on your own schedule delivering around Arakan. Get in touch and we'll walk you through joining.</p>
+        <div class="contact-links">
+          <a href="tel:09618610787" class="btn btn-white"><span class="material-symbols-rounded" style="font-size:16px">call</span> 0961 861 0787</a>
+          <a href="mailto:pasugoarakan@gmail.com" class="btn-text-link"><span class="material-symbols-rounded" style="font-size:15px">mail</span> pasugoarakan@gmail.com</a>
+          <a href="https://facebook.com/elinojao2" target="_blank" rel="noopener" class="btn-text-link"><span class="material-symbols-rounded" style="font-size:15px">chat</span> Message us on Facebook</a>
+        </div>
       </div>
       <div class="join-card merchant">
         <span class="material-symbols-rounded big">storefront</span>
-        <h3>I-list ang Tindahan Mo</h3>
-        <p>Reach more customers around Arakan without extra foot traffic overhead. Set up your store, manage orders, and get paid — all from one dashboard.</p>
-        <a href="../merchant/index.html" class="btn btn-gold">Register Your Store</a>
+        <h3>Want to grow with us?</h3>
+        <p>Reach more customers around Arakan without extra foot traffic overhead. Contact us to get your store set up.</p>
+        <div class="contact-links">
+          <a href="tel:09618610787" class="btn btn-gold"><span class="material-symbols-rounded" style="font-size:16px">call</span> 0961 861 0787</a>
+          <a href="mailto:pasugoarakan@gmail.com" class="btn-text-link light"><span class="material-symbols-rounded" style="font-size:15px">mail</span> pasugoarakan@gmail.com</a>
+          <a href="https://facebook.com/elinojao2" target="_blank" rel="noopener" class="btn-text-link light"><span class="material-symbols-rounded" style="font-size:15px">chat</span> Message us on Facebook</a>
+        </div>
       </div>
     </div>
   </div>
@@ -426,15 +439,26 @@
         <h5>Platform</h5>
         <ul>
           <li><a href="#" onclick="openOrderModal();return false">Order Now</a></li>
-          <li><a href="../merchant/index.html">Merchant Dashboard</a></li>
           <li><a href="#join">Become a Rider</a></li>
+          <li><a href="#join">Partner With Us</a></li>
         </ul>
       </div>
       <div>
         <h5>Get in touch</h5>
         <ul>
-          <li><a href="mailto:hello@pasugoarakan.ph">hello@pasugoarakan.ph</a></li>
+          <li><a href="tel:09618610787">0961 861 0787</a></li>
+          <li><a href="mailto:pasugoarakan@gmail.com">pasugoarakan@gmail.com</a></li>
+          <li><a href="https://facebook.com/elinojao2" target="_blank" rel="noopener">facebook.com/elinojao2</a></li>
           <li>Arakan, North Cotabato</li>
+        </ul>
+      </div>
+      <div>
+        <h5>Legal</h5>
+        <ul>
+          <li><a href="../terms/index.html">Terms &amp; Conditions</a></li>
+          <li><a href="../privacy/index.html">Privacy Policy</a></li>
+          <li><a href="../terms/index.html#legal">Legal &amp; Business Info</a></li>
+          <li><a href="mailto:pasugoarakan@gmail.com">Contact</a></li>
         </ul>
       </div>
     </div>
@@ -489,16 +513,12 @@ function setApkLinksLive() {
   customerLink.removeAttribute('onclick');
   customerLink.classList.add('primary');
   customerSub.textContent = 'Direct APK download — no Play Store needed';
-
-  const riderLink = document.getElementById('rider-apk-link');
-  if (riderLink) {
-    riderLink.href = `${GITHUB_RELEASE_BASE}/rider-app.apk`;
-    riderLink.removeAttribute('onclick');
-    riderLink.querySelector('.rider-apk-sub-text').textContent = 'Direct APK download';
-  }
+  // Rider and merchant apps are shared privately by the admin/owner after
+  // vetting, not offered as a public download — see the Join section.
 }
 setApkLinksLive();
 </script>
+
 
 </body>
 </html>

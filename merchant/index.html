@@ -192,14 +192,13 @@
       <button class="btn btn-primary" onclick="doRegister()"><span class="material-symbols-rounded" style="font-size:18px">storefront</span> Create merchant account</button>
       <div id="register-error"></div>
     </div>
-    <div class="login-demo">Point "API base URL" at your deployed Flask backend. New stores need admin approval before they appear to customers.</div>
-    <div id="merchant-apk-download" style="margin-top:14px;padding:12px;background:var(--green-tint-2);border-radius:10px;display:none;align-items:center;gap:10px">
-      <span class="material-symbols-rounded" style="color:var(--green-dark)">android</span>
+    <div class="login-demo">New stores need admin approval before they appear to customers.</div>
+    <div style="margin-top:14px;padding:12px;background:var(--green-tint-2);border-radius:10px;display:flex;align-items:center;gap:10px">
+      <span class="material-symbols-rounded" style="color:var(--green-dark)">storefront</span>
       <div style="flex:1;font-size:11.5px">
-        <div style="font-weight:700">Prefer the app?</div>
-        <div style="color:var(--gray-600)">Skip the browser — manage orders from your phone.</div>
+        <div style="font-weight:700">Want to grow with us?</div>
+        <div style="color:var(--gray-600)">Contact us at <a href="tel:09618610787" style="color:var(--green-dark);font-weight:600">0961 861 0787</a> or <a href="mailto:pasugoarakan@gmail.com" style="color:var(--green-dark);font-weight:600">pasugoarakan@gmail.com</a></div>
       </div>
-      <a id="merchant-apk-link" href="#" class="btn btn-primary btn-sm">Download</a>
     </div>
   </div>
 </div>
@@ -239,10 +238,6 @@
       <div class="nav-item" data-view="store"><span class="material-symbols-rounded">storefront</span>Store settings</div>
       <div class="nav-item" data-view="wallet"><span class="material-symbols-rounded">account_balance_wallet</span>Wallet</div>
     </div>
-    <a id="merchant-apk-link-sidebar" href="#" style="display:none;align-items:center;gap:8px;margin:0 12px 10px;padding:9px 12px;
-      background:var(--green-tint);border-radius:10px;font-size:11.5px;font-weight:600;color:var(--green-dark)">
-      <span class="material-symbols-rounded" style="font-size:16px">android</span> Download the app
-    </a>
     <div class="sidebar-footer">
       <div class="avatar" id="user-avatar">M</div>
       <div class="who"><div class="n" id="user-name">Merchant</div><div class="r">Store owner</div></div>
@@ -486,22 +481,6 @@
 
 let API_BASE = "https://api.pasugoarakan.com";
 let TOKEN = null;
-
-// APKs are hosted as GitHub Release assets (not PythonAnywhere) — much more
-// reliable for large binary files than uploading through a web form.
-const GITHUB_RELEASE_BASE = "https://github.com/elinojao2/pasugo-arakan-web/releases/download/apks-v1";
-
-function setMerchantApkLinksLive() {
-  const url = `${GITHUB_RELEASE_BASE}/merchant-app.apk`;
-
-  const loginBox = document.getElementById("merchant-apk-download");
-  const loginLink = document.getElementById("merchant-apk-link");
-  if (loginBox && loginLink) { loginLink.href = url; loginBox.style.display = "flex"; }
-
-  const sidebarLink = document.getElementById("merchant-apk-link-sidebar");
-  if (sidebarLink) { sidebarLink.href = url; sidebarLink.style.display = "flex"; }
-}
-setMerchantApkLinksLive();
 let ME = null;
 let PENDING_MOBILE = null;
 let STORES = [];
