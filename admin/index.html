@@ -387,6 +387,26 @@
 </div>
 
 <!-- ============================= MODALS ============================= -->
+<div class="modal-backdrop" id="modal-delete-user">
+  <div class="modal">
+    <h3 style="color:#DC2626">Delete this user permanently?</h3>
+    <p style="font-size:12.5px;color:var(--gray-600);margin:8px 0 16px">
+      This deletes <strong id="delete-user-name"></strong> (<span id="delete-user-role"></span>) and
+      <strong>everything tied to their account</strong> — orders, addresses, reviews, wallet, delivery
+      history. This cannot be undone.
+    </p>
+    <div class="field">
+      <label>Enter your admin password to confirm</label>
+      <input type="password" id="delete-user-password" placeholder="Your password">
+    </div>
+    <div id="delete-user-error" style="color:#DC2626;font-size:12px;margin-top:6px;min-height:16px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-delete-user')">Cancel</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmDeleteUser()">Delete permanently</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="modal-reject">
   <div class="modal">
     <h3 id="reject-modal-title">Reject application</h3>
@@ -467,6 +487,7 @@
 let API_BASE = "";
 let TOKEN = null;
 let ME = null;
+let USERS_CACHE = {};
 let pendingRejectAction = null; // {type:'rider'|'merchant', id}
 
 // ---------------------------------------------------------------- API --
@@ -879,6 +900,8 @@ async function loadUsers() {
     const q = document.getElementById("users-search").value.trim();
     const qs = new URLSearchParams(); if (role) qs.set("role", role); if (q) qs.set("q", q); qs.set("per_page", "50");
     const data = await api("/api/admin/users?" + qs.toString());
+    USERS_CACHE = {};
+    data.items.forEach(u => USERS_CACHE[u.id] = u);
     document.getElementById("users-tbody").innerHTML = data.items.length ? data.items.map(u => `
       <tr>
         <td class="cell-strong">${escapeHtml(u.full_name)}</td>
@@ -890,6 +913,7 @@ async function loadUsers() {
           ${u.is_suspended
             ? `<button class="btn btn-ghost btn-sm" onclick="unsuspendUser(${u.id})">Unsuspend</button>`
             : `<button class="btn btn-danger btn-sm" onclick="suspendUser(${u.id})">Suspend</button>`}
+          <button class="btn btn-danger btn-sm" onclick="openDeleteUser(${u.id})"><span class="material-symbols-rounded" style="font-size:14px">delete_forever</span></button>
         </td>
       </tr>`).join("") : `<tr><td colspan="6"><div class="empty-state"><span class="material-symbols-rounded">person_off</span><div>No users match.</div></div></td></tr>`;
   } catch (e) { showToast(e.message, true); }
@@ -903,6 +927,29 @@ async function suspendUser(id) {
 async function unsuspendUser(id) {
   try { await api(`/api/admin/users/${id}/unsuspend`, { method: "POST" }); showToast("User reinstated"); loadUsers(); }
   catch (e) { showToast(e.message, true); }
+}
+
+let DELETE_TARGET_USER_ID = null;
+function openDeleteUser(id) {
+  const u = USERS_CACHE[id];
+  if (!u) return;
+  DELETE_TARGET_USER_ID = id;
+  document.getElementById("delete-user-name").textContent = u.full_name;
+  document.getElementById("delete-user-role").textContent = u.role;
+  document.getElementById("delete-user-password").value = "";
+  document.getElementById("delete-user-error").textContent = "";
+  openModal("modal-delete-user");
+}
+async function confirmDeleteUser() {
+  const password = document.getElementById("delete-user-password").value;
+  const errEl = document.getElementById("delete-user-error");
+  if (!password) { errEl.textContent = "Enter your admin password to confirm."; return; }
+  try {
+    await api(`/api/admin/users/${DELETE_TARGET_USER_ID}`, { method: "DELETE", body: JSON.stringify({ password }) });
+    closeModal("modal-delete-user");
+    showToast("User deleted permanently");
+    loadUsers();
+  } catch (e) { errEl.textContent = e.message; }
 }
 
 // ----------------------------------------------------------- Categories --

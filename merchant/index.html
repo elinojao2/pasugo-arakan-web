@@ -172,7 +172,6 @@
     </div>
 
     <div id="pane-login">
-      <div class="field"><label>API base URL</label><input id="api-base" placeholder="https://your-app.pythonanywhere.com"></div>
       <div class="field"><label>Email or mobile number</label><input id="login-id" placeholder="owner@storename.ph"></div>
       <div class="field"><label>Password</label><input id="login-pass" type="password" placeholder="••••••••"></div>
       <button class="btn btn-primary" onclick="doLogin()"><span class="material-symbols-rounded" style="font-size:18px">login</span> Sign in</button>
@@ -180,7 +179,6 @@
     </div>
 
     <div id="pane-register" style="display:none">
-      <div class="field"><label>API base URL</label><input id="reg-api-base" placeholder="https://your-app.pythonanywhere.com"></div>
       <div class="field"><label>Business name</label><input id="reg-business-name" placeholder="e.g. ABC Grocery"></div>
       <div class="field"><label>Owner full name</label><input id="reg-owner-name" placeholder="Juan Dela Cruz"></div>
       <div class="field"><label>Email</label><input id="reg-email" placeholder="owner@storename.ph"></div>
@@ -476,7 +474,7 @@
    as a static site (Netlify drag-and-drop, GitHub Pages, etc).
    =================================================================== */
 
-let API_BASE = "";
+let API_BASE = "https://api.pasugoarakan.com";
 let TOKEN = null;
 
 // ⚠️ CONFIGURE THIS — used only for the "Download the app" links (separate
@@ -604,12 +602,10 @@ function switchAuthTab(tab) {
 }
 
 async function doLogin() {
-  const base = document.getElementById("api-base").value.trim();
   const id = document.getElementById("login-id").value.trim();
   const pass = document.getElementById("login-pass").value;
   const errEl = document.getElementById("login-error"); errEl.textContent = "";
-  if (!base || !id || !pass) { errEl.textContent = "Fill in all fields."; return; }
-  API_BASE = base;
+  if (!id || !pass) { errEl.textContent = "Fill in all fields."; return; }
   try {
     const body = id.includes("@") ? { email: id, password: pass } : { mobile_number: id, password: pass };
     const data = await api("/api/auth/login", { method: "POST", body: JSON.stringify(body) });
@@ -624,17 +620,15 @@ async function doLogin() {
 }
 
 async function doRegister() {
-  const base = document.getElementById("reg-api-base").value.trim();
   const errEl = document.getElementById("register-error"); errEl.textContent = "";
   const business_name = document.getElementById("reg-business-name").value.trim();
   const owner_name = document.getElementById("reg-owner-name").value.trim();
   const email = document.getElementById("reg-email").value.trim();
   const mobile_number = document.getElementById("reg-mobile").value.trim();
   const password = document.getElementById("reg-pass").value;
-  if (!base || !business_name || !owner_name || !password || !mobile_number) {
+  if (!business_name || !owner_name || !password || !mobile_number) {
     errEl.textContent = "Fill in all required fields — mobile number is required to verify your account."; return;
   }
-  API_BASE = base;
   try {
     const data = await api("/api/auth/register", { method: "POST", body: JSON.stringify({
       role: "merchant", full_name: owner_name, business_name, owner_name, email, mobile_number, password,
