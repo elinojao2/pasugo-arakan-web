@@ -21,7 +21,7 @@
   ::-webkit-scrollbar{width:8px;height:8px;} ::-webkit-scrollbar-thumb{background:var(--gray-200);border-radius:8px;}
   a{color:inherit;text-decoration:none;} button{font-family:inherit;cursor:pointer;}
 
-  #login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;
+  #login-screen,#otp-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;
     background:radial-gradient(circle at 80% 15%, #16A34A 0%, #0F172A 55%, #0B1120 100%);padding:24px;}
   .login-card{width:100%;max-width:400px;background:rgba(255,255,255,.98);border-radius:24px;padding:40px 36px;
     box-shadow:0 30px 60px -20px rgba(0,0,0,.5);}
@@ -172,7 +172,7 @@
     </div>
 
     <div id="pane-login">
-      <div class="field"><label>API base URL</label><input id="api-base" placeholder="https://your-app.pythonanywhere.com" value="https://api.pasugoarakan.com">></div>
+      <div class="field"><label>API base URL</label><input id="api-base" placeholder="https://your-app.pythonanywhere.com"></div>
       <div class="field"><label>Email or mobile number</label><input id="login-id" placeholder="owner@storename.ph"></div>
       <div class="field"><label>Password</label><input id="login-pass" type="password" placeholder="••••••••"></div>
       <button class="btn btn-primary" onclick="doLogin()"><span class="material-symbols-rounded" style="font-size:18px">login</span> Sign in</button>
@@ -180,7 +180,7 @@
     </div>
 
     <div id="pane-register" style="display:none">
-      <div class="field"><label>API base URL</label><input id="reg-api-base" placeholder="https://your-app.pythonanywhere.com" value="https://api.pasugoarakan.com"></div>
+      <div class="field"><label>API base URL</label><input id="reg-api-base" placeholder="https://your-app.pythonanywhere.com"></div>
       <div class="field"><label>Business name</label><input id="reg-business-name" placeholder="e.g. ABC Grocery"></div>
       <div class="field"><label>Owner full name</label><input id="reg-owner-name" placeholder="Juan Dela Cruz"></div>
       <div class="field"><label>Email</label><input id="reg-email" placeholder="owner@storename.ph"></div>
@@ -197,6 +197,22 @@
         <div style="color:var(--gray-600)">Skip the browser — manage orders from your phone.</div>
       </div>
       <a id="merchant-apk-link" href="#" class="btn btn-primary btn-sm">Download</a>
+    </div>
+  </div>
+</div>
+
+<div id="otp-screen" style="display:none">
+  <div class="login-card">
+    <div class="login-brand"><img src="../assets/favicon.png" alt="Pasugo Arakan" class="mark" style="object-fit:contain;background:transparent"><div><div class="name">Verify your number</div><div class="sub">Required to set up your store</div></div></div>
+    <p style="font-size:12.5px;color:var(--gray-600);margin-bottom:16px" id="otp-hint">We sent a 6-digit code to your mobile number.</p>
+    <div class="field"><label>Verification code</label><input id="otp-code" maxlength="6" placeholder="000000" style="letter-spacing:4px;font-size:18px;text-align:center"></div>
+    <button class="btn btn-primary" onclick="doVerifyOtp()">Verify</button>
+    <div style="text-align:center;margin-top:14px">
+      <a onclick="doResendOtp()" style="font-size:12px;color:var(--green-dark);font-weight:600;cursor:pointer">Resend code</a>
+    </div>
+    <div id="otp-error" style="color:#DC2626;font-size:12px;margin-top:8px;min-height:16px"></div>
+    <div style="text-align:center;margin-top:10px">
+      <a onclick="document.getElementById('otp-screen').style.display='none';document.getElementById('login-screen').style.display='flex'" style="font-size:11.5px;color:var(--gray-600);cursor:pointer">← Back to login</a>
     </div>
   </div>
 </div>
@@ -466,7 +482,8 @@ let TOKEN = null;
 // ⚠️ CONFIGURE THIS — used only for the "Download the app" links (separate
 // from the API base URL field above, which a merchant types in to log in
 // and could point anywhere). Same backend address as the landing page.
-const APK_BASE = "https://api.pasugoarakan.com";
+const APK_BASE = "http://192.168.1.13:5000";
+
 async function checkMerchantApkAvailability() {
   try {
     const res = await fetch(APK_BASE.replace(/\/$/, "") + "/downloads/status");
@@ -487,6 +504,7 @@ async function checkMerchantApkAvailability() {
 }
 checkMerchantApkAvailability();
 let ME = null;
+let PENDING_MOBILE = null;
 let STORES = [];
 let ACTIVE_STORE = null;
 let CATEGORIES = [];
@@ -597,7 +615,11 @@ async function doLogin() {
     const data = await api("/api/auth/login", { method: "POST", body: JSON.stringify(body) });
     if (data.user.role !== "merchant") throw new Error("This account is not a merchant account.");
     TOKEN = data.access_token; ME = data.user;
-    enterApp();
+    if (!ME.is_mobile_verified && ME.mobile_number) {
+      showOtpScreen(ME.mobile_number, true);
+    } else {
+      enterApp();
+    }
   } catch (e) { errEl.textContent = e.message; }
 }
 
@@ -609,8 +631,8 @@ async function doRegister() {
   const email = document.getElementById("reg-email").value.trim();
   const mobile_number = document.getElementById("reg-mobile").value.trim();
   const password = document.getElementById("reg-pass").value;
-  if (!base || !business_name || !owner_name || !password || (!email && !mobile_number)) {
-    errEl.textContent = "Fill in all required fields."; return;
+  if (!base || !business_name || !owner_name || !password || !mobile_number) {
+    errEl.textContent = "Fill in all required fields — mobile number is required to verify your account."; return;
   }
   API_BASE = base;
   try {
@@ -618,7 +640,37 @@ async function doRegister() {
       role: "merchant", full_name: owner_name, business_name, owner_name, email, mobile_number, password,
     })});
     TOKEN = data.access_token; ME = data.user;
-    showToast("Account created! Set up your store next.");
+    showOtpScreen(mobile_number, true);
+  } catch (e) { errEl.textContent = e.message; }
+}
+
+function showOtpScreen(mobile, autoSend) {
+  PENDING_MOBILE = mobile;
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("otp-screen").style.display = "flex";
+  document.getElementById("otp-hint").textContent = `We sent a 6-digit code to ${mobile}.`;
+  document.getElementById("otp-code").value = "";
+  document.getElementById("otp-error").textContent = "";
+  if (autoSend) doResendOtp(true);
+}
+
+async function doResendOtp(silent) {
+  try {
+    await api("/api/auth/otp/request", { method: "POST", body: JSON.stringify({ mobile_number: PENDING_MOBILE }) });
+    if (!silent) showToast("Code resent");
+  } catch (e) {
+    document.getElementById("otp-error").textContent = e.message;
+  }
+}
+
+async function doVerifyOtp() {
+  const code = document.getElementById("otp-code").value.trim();
+  const errEl = document.getElementById("otp-error"); errEl.textContent = "";
+  if (code.length < 4) { errEl.textContent = "Enter the code."; return; }
+  try {
+    const data = await api("/api/auth/otp/verify", { method: "POST", body: JSON.stringify({ mobile_number: PENDING_MOBILE, otp: code }) });
+    TOKEN = data.access_token; ME = data.user;
+    document.getElementById("otp-screen").style.display = "none";
     enterApp();
   } catch (e) { errEl.textContent = e.message; }
 }
