@@ -173,13 +173,11 @@
     </div>
     <h1>Sign in</h1>
     <p class="hint">Manage riders, merchants, orders, and platform settings.</p>
-    <div class="field"><label>API base URL</label><input id="api-base" placeholder="https://your-app.pythonanywhere.com" value=""></div>
     <div class="field"><label>Email or mobile number</label><input id="login-id" placeholder="admin@pasugoarakan.ph"></div>
     <div class="field"><label>Password</label><input id="login-pass" type="password" placeholder="••••••••"></div>
     <button class="btn btn-primary" onclick="doLogin()"><span class="material-symbols-rounded" style="font-size:18px">login</span> Sign in</button>
     <div id="login-error"></div>
     <div class="login-demo">
-      Point "API base URL" at your deployed Flask backend (e.g. PythonAnywhere URL) from the Pasugo Arakan backend project.
       No account yet? Create the first admin directly in your database, or via <code>POST /api/admin/admins</code> once logged in as one.
     </div>
   </div>
@@ -484,7 +482,7 @@
    as a static site (Netlify drag-and-drop, GitHub Pages, etc).
    =================================================================== */
 
-let API_BASE = "";
+let API_BASE = "https://api.pasugoarakan.com";
 let TOKEN = null;
 let ME = null;
 let USERS_CACHE = {};
@@ -521,15 +519,12 @@ function closeModal(id) { document.getElementById(id).classList.remove("active")
 
 // --------------------------------------------------------------- Auth --
 async function doLogin() {
-  const base = document.getElementById("api-base").value.trim();
   const id = document.getElementById("login-id").value.trim();
   const pass = document.getElementById("login-pass").value;
   const errEl = document.getElementById("login-error");
   errEl.textContent = "";
-  if (!base) { errEl.textContent = "Enter your API base URL."; return; }
   if (!id || !pass) { errEl.textContent = "Enter your email/mobile and password."; return; }
 
-  API_BASE = base;
   try {
     const body = id.includes("@") ? { email: id, password: pass } : { mobile_number: id, password: pass };
     const data = await api("/api/auth/login", { method: "POST", body: JSON.stringify(body) });
@@ -652,16 +647,15 @@ async function loadOverview() {
         </div>`).join("")
       : `<div class="cell-sub" style="padding:16px 0">No delivered orders yet this month.</div>`;
 
-    // simple bar chart placeholder using revenue_today/this_month spread evenly (illustrative until a /analytics/daily endpoint exists)
-    const days = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
-    const base = Math.max(a.revenue_today, 1);
     const chartEl = document.getElementById("orders-chart");
     const labelsEl = document.getElementById("orders-chart-labels");
-    chartEl.innerHTML = days.map((d,i) => {
-      const h = Math.round(30 + Math.random()*70);
-      return `<div class="bar" style="height:${h}%" title="${d}"></div>`;
+    const days7 = a.orders_last_7_days || [];
+    const maxCount = Math.max(...days7.map(d => d.count), 1);
+    chartEl.innerHTML = days7.map(d => {
+      const h = Math.round((d.count / maxCount) * 100);
+      return `<div class="bar" style="height:${Math.max(h, d.count > 0 ? 6 : 2)}%" title="${d.label}: ${d.count} order${d.count === 1 ? '' : 's'}"></div>`;
     }).join("");
-    labelsEl.innerHTML = days.map(d => `<span>${d}</span>`).join("");
+    labelsEl.innerHTML = days7.map(d => `<span>${d.label}</span>`).join("");
 
     document.getElementById("pending-approvals-sub").textContent =
       `${a.total_riders} riders · ${a.total_merchants} merchants total on platform`;

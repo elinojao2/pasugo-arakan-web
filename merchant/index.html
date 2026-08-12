@@ -136,6 +136,11 @@
     display:flex;align-items:center;gap:8px;animation:slideIn .2s ease-out;} .toast.err{background:var(--red);}
   @keyframes slideIn{from{transform:translateY(10px);opacity:0;}to{transform:translateY(0);opacity:1;}}
 
+  .bars{display:flex;align-items:flex-end;gap:8px;height:140px;margin-top:10px;}
+  .bar{flex:1;background:linear-gradient(180deg,var(--green) 0%,var(--green-dark) 100%);border-radius:6px 6px 2px 2px;
+    position:relative;min-height:4px;}
+  .bar-labels{display:flex;gap:8px;margin-top:6px;} .bar-labels span{flex:1;text-align:center;font-size:10px;color:var(--gray-600);}
+
   .skeleton{background:linear-gradient(90deg,var(--gray-100) 25%,var(--gray-200) 37%,var(--gray-100) 63%);background-size:400% 100%;
     animation:shimmer 1.4s infinite;border-radius:8px;} @keyframes shimmer{0%{background-position:100% 50%;}100%{background-position:0 50%;}}
 
@@ -266,6 +271,11 @@
           <div><strong>Awaiting admin approval</strong><div style="font-size:12.5px;color:var(--ink-2)">Your store will appear to customers once approved.</div></div>
         </div>
         <div class="grid cols-4" id="overview-stats"></div>
+        <div class="card" style="margin-top:16px">
+          <h3 style="margin:0 0 4px">Orders — last 7 days</h3>
+          <div class="bars" id="orders-chart"></div>
+          <div class="bar-labels" id="orders-chart-labels"></div>
+        </div>
         <div class="section-title"><h2>Recent orders</h2><a href="#" onclick="navigate('orders');return false" style="font-size:12.5px;color:var(--green-dark);font-weight:600">View all →</a></div>
         <div class="table-wrap"><table>
           <thead><tr><th>Order #</th><th>Type</th><th>Total</th><th>Payment</th><th>Status</th><th>Placed</th></tr></thead>
@@ -833,6 +843,18 @@ async function loadOverview() {
       ${statCard("payments","Revenue today", money(summary.revenue_today))}
     `;
   } catch (e) { showToast(e.message, true); }
+
+  try {
+    const days7 = await api("/api/merchant/orders/last-7-days");
+    const chartEl = document.getElementById("orders-chart");
+    const labelsEl = document.getElementById("orders-chart-labels");
+    const maxCount = Math.max(...days7.map(d => d.count), 1);
+    chartEl.innerHTML = days7.map(d => {
+      const h = Math.round((d.count / maxCount) * 100);
+      return `<div class="bar" style="height:${Math.max(h, d.count > 0 ? 6 : 2)}%" title="${d.label}: ${d.count} order${d.count === 1 ? '' : 's'}"></div>`;
+    }).join("");
+    labelsEl.innerHTML = days7.map(d => `<span>${d.label}</span>`).join("");
+  } catch (e) { /* non-critical — leave chart empty rather than blocking the rest of the page */ }
 
   document.getElementById("recent-orders-tbody").innerHTML = skeletonRows(6);
   try {
