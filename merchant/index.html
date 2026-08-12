@@ -487,30 +487,21 @@
 let API_BASE = "https://api.pasugoarakan.com";
 let TOKEN = null;
 
-// ⚠️ CONFIGURE THIS — used only for the "Download the app" links (separate
-// from the API base URL field above, which a merchant types in to log in
-// and could point anywhere). Same backend address as the landing page.
-const APK_BASE = "https://api.pasugoarakan.com";
+// APKs are hosted as GitHub Release assets (not PythonAnywhere) — much more
+// reliable for large binary files than uploading through a web form.
+const GITHUB_RELEASE_BASE = "https://github.com/elinojao2/pasugo-arakan-backend/releases/download/apks-v1";
 
-async function checkMerchantApkAvailability() {
-  try {
-    const res = await fetch(APK_BASE.replace(/\/$/, "") + "/downloads/status");
-    const status = await res.json();
-    if (!status["merchant-app.apk"]) return;
-    const url = APK_BASE.replace(/\/$/, "") + "/downloads/merchant-app.apk";
+function setMerchantApkLinksLive() {
+  const url = `${GITHUB_RELEASE_BASE}/merchant-app.apk`;
 
-    const loginBox = document.getElementById("merchant-apk-download");
-    const loginLink = document.getElementById("merchant-apk-link");
-    if (loginBox && loginLink) { loginLink.href = url; loginBox.style.display = "flex"; }
+  const loginBox = document.getElementById("merchant-apk-download");
+  const loginLink = document.getElementById("merchant-apk-link");
+  if (loginBox && loginLink) { loginLink.href = url; loginBox.style.display = "flex"; }
 
-    const sidebarLink = document.getElementById("merchant-apk-link-sidebar");
-    if (sidebarLink) { sidebarLink.href = url; sidebarLink.style.display = "flex"; }
-  } catch (e) {
-    // Backend unreachable — leave download links hidden rather than showing
-    // one that won't work.
-  }
+  const sidebarLink = document.getElementById("merchant-apk-link-sidebar");
+  if (sidebarLink) { sidebarLink.href = url; sidebarLink.style.display = "flex"; }
 }
-checkMerchantApkAvailability();
+setMerchantApkLinksLive();
 let ME = null;
 let PENDING_MOBILE = null;
 let STORES = [];

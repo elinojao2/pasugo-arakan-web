@@ -475,46 +475,29 @@
 // ⚠️ CONFIGURE THIS — same backend address used by the customer/merchant web
 // apps. APK downloads are served directly by Flask (see backend/downloads/),
 // no app store required.
-const APK_BASE = "https://api.pasugoarakan.com";
-
 function openOrderModal() { document.getElementById('order-modal').classList.add('open'); document.body.style.overflow = 'hidden'; }
 function closeOrderModal() { document.getElementById('order-modal').classList.remove('open'); document.body.style.overflow = ''; }
 
-// Reflects real upload status rather than always claiming the download
-// works — checks once on page load whether each .apk has actually been
-// placed on the server yet (see backend/app/routes/downloads.py).
-async function checkApkAvailability() {
-  try {
-    const res = await fetch(APK_BASE.replace(/\/$/, '') + '/downloads/status');
-    const status = await res.json();
+// APKs are hosted as GitHub Release assets (not PythonAnywhere) — much more
+// reliable for large binary files than uploading through a web form.
+const GITHUB_RELEASE_BASE = "https://github.com/elinojao2/pasugo-arakan-backend/releases/download/apks-v1";
 
-    const customerLink = document.getElementById('customer-apk-link');
-    const customerSub = document.getElementById('customer-apk-sub');
-    if (status['customer-app.apk']) {
-      customerLink.href = APK_BASE.replace(/\/$/, '') + '/downloads/customer-app.apk';
-      customerLink.removeAttribute('onclick');
-      customerLink.classList.add('primary');
-      customerSub.textContent = 'Direct APK download — no Play Store needed';
-    } else {
-      customerSub.textContent = 'Coming soon — not uploaded yet';
-    }
+function setApkLinksLive() {
+  const customerLink = document.getElementById('customer-apk-link');
+  const customerSub = document.getElementById('customer-apk-sub');
+  customerLink.href = `${GITHUB_RELEASE_BASE}/customer-app.apk`;
+  customerLink.removeAttribute('onclick');
+  customerLink.classList.add('primary');
+  customerSub.textContent = 'Direct APK download — no Play Store needed';
 
-    const riderLink = document.getElementById('rider-apk-link');
-    if (riderLink) {
-      if (status['rider-app.apk']) {
-        riderLink.href = APK_BASE.replace(/\/$/, '') + '/downloads/rider-app.apk';
-        riderLink.removeAttribute('onclick');
-        riderLink.querySelector('.rider-apk-sub-text').textContent = 'Direct APK download';
-      } else {
-        riderLink.querySelector('.rider-apk-sub-text').textContent = 'Coming soon';
-      }
-    }
-  } catch (e) {
-    // Backend unreachable — leave the "coming soon" defaults in place rather
-    // than showing a broken/misleading link.
+  const riderLink = document.getElementById('rider-apk-link');
+  if (riderLink) {
+    riderLink.href = `${GITHUB_RELEASE_BASE}/rider-app.apk`;
+    riderLink.removeAttribute('onclick');
+    riderLink.querySelector('.rider-apk-sub-text').textContent = 'Direct APK download';
   }
 }
-checkApkAvailability();
+setApkLinksLive();
 </script>
 
 </body>
