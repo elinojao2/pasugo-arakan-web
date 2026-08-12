@@ -289,6 +289,12 @@
       <div class="view" id="view-merchants">
         <div class="section-title"><h2>Pending merchant applications</h2></div>
         <div id="merchants-pending-list" class="grid cols-3"></div>
+
+        <div class="section-title" style="margin-top:28px"><h2>All merchants — earnings</h2></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Business</th><th>Owner</th><th>Status</th><th>Stores</th><th>Delivered orders</th><th>Gross revenue</th><th>Total earnings</th><th>Wallet balance</th></tr></thead>
+          <tbody id="merchants-all-tbody"></tbody>
+        </table></div>
       </div>
 
       <!-- ---------------- USERS ---------------- -->
@@ -559,7 +565,7 @@ const loaders = {
   orders: loadOrders,
   "live-map": loadLiveMap,
   riders: loadPendingRiders,
-  merchants: loadPendingMerchants,
+  merchants: () => { loadPendingMerchants(); loadAllMerchants(); },
   users: loadUsers,
   categories: loadCategories,
   promos: loadPromos,
@@ -584,7 +590,11 @@ const titles = {
 };
 
 let currentView = "overview";
-let _liveMapRefreshTimer = null;
+let _autoRefreshTimer = null;
+// Views where a form is actively being edited — auto-refreshing these
+// would silently wipe out whatever the admin is mid-typing.
+const NO_AUTO_REFRESH_VIEWS = new Set(["settings"]);
+
 function navigate(view) {
   currentView = view;
   document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.view === view));
@@ -594,9 +604,13 @@ function navigate(view) {
   document.getElementById("page-crumb").textContent = titles[view][1];
   loaders[view] && loaders[view]();
 
-  clearInterval(_liveMapRefreshTimer);
-  if (view === "live-map") {
-    _liveMapRefreshTimer = setInterval(loadLiveMap, 10000);
+  clearInterval(_autoRefreshTimer);
+  if (!NO_AUTO_REFRESH_VIEWS.has(view)) {
+    // Live Map moves fast (riders update every few seconds); everything
+    // else refreshes at a calmer pace since order/stat data changes less
+    // often — either way, nobody has to press refresh manually.
+    const interval = view === "live-map" ? 10000 : 20000;
+    _autoRefreshTimer = setInterval(() => { loaders[view] && loaders[view](); }, interval);
   }
 }
 function refreshCurrentView() { loaders[currentView] && loaders[currentView](); showToast("Refreshed"); }
@@ -863,6 +877,24 @@ async function loadPendingMerchants() {
           <button class="btn btn-danger btn-sm" onclick="openRejectModal('merchant', ${m.id})"><span class="material-symbols-rounded" style="font-size:15px">close</span> Reject</button>
         </div>
       </div>`).join("") : emptyCard("verified", "No pending merchant applications.");
+  } catch (e) { showToast(e.message, true); }
+}
+async function loadAllMerchants() {
+  const tbody = document.getElementById("merchants-all-tbody");
+  tbody.innerHTML = skeletonRows(8);
+  try {
+    const merchants = await api("/api/admin/merchants");
+    tbody.innerHTML = merchants.length ? merchants.map(m => `
+      <tr>
+        <td class="cell-strong">${escapeHtml(m.business_name)}</td>
+        <td class="cell-sub">${escapeHtml(m.owner_name)}</td>
+        <td>${chip(m.approval_status)}</td>
+        <td class="cell-sub">${m.store_count}</td>
+        <td class="cell-sub">${m.total_orders}</td>
+        <td>${money(m.gross_revenue)}</td>
+        <td class="cell-strong" style="color:var(--green-dark)">${money(m.total_earnings)}</td>
+        <td class="cell-sub">${money(m.wallet_balance)}</td>
+      </tr>`).join("") : `<tr><td colspan="8"><div class="empty-state"><span class="material-symbols-rounded">storefront</span><div>No merchants yet.</div></div></td></tr>`;
   } catch (e) { showToast(e.message, true); }
 }
 async function approveMerchant(id) {

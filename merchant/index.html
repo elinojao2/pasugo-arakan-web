@@ -814,6 +814,11 @@ const titles = {
   wallet: ["Wallet", "Earnings and withdrawals"],
 };
 let currentView = "overview";
+let _autoRefreshTimer = null;
+// The Store Settings view has an active form (business hours, etc.) —
+// auto-refreshing it would wipe out whatever the merchant is mid-editing.
+const NO_AUTO_REFRESH_VIEWS = new Set(["store"]);
+
 function navigate(view) {
   currentView = view;
   document.querySelectorAll(".nav-item").forEach(n => n.classList.toggle("active", n.dataset.view === view));
@@ -822,6 +827,12 @@ function navigate(view) {
   document.getElementById("page-title").textContent = titles[view][0];
   document.getElementById("page-crumb").textContent = titles[view][1];
   loaders[view] && loaders[view]();
+
+  clearInterval(_autoRefreshTimer);
+  if (!NO_AUTO_REFRESH_VIEWS.has(view)) {
+    // Nobody should have to press refresh to see a new order come in.
+    _autoRefreshTimer = setInterval(() => { loaders[view] && loaders[view](); }, 20000);
+  }
 }
 function refreshCurrentView() { loaders[currentView] && loaders[currentView](); showToast("Refreshed"); }
 document.querySelectorAll(".nav-item").forEach(n => n.addEventListener("click", () => navigate(n.dataset.view)));
