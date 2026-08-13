@@ -119,6 +119,14 @@
   .cell-strong{font-weight:600;} .cell-sub{font-size:11.5px;color:var(--gray-600);}
   .row-actions{display:flex;gap:6px;}
   .empty-state{padding:60px 20px;text-align:center;color:var(--gray-600);}
+
+  .clickable-row{cursor:pointer;} .clickable-row:hover{background:var(--gray-50);}
+  .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .detail-label{font-size:11px;color:var(--gray-600);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;}
+  .detail-value{font-size:13.5px;font-weight:600;color:var(--ink);}
+  .mini-stat{background:var(--gray-50);border-radius:10px;padding:12px;}
+  .mini-stat-label{font-size:10.5px;color:var(--gray-600);margin-bottom:4px;}
+  .mini-stat-value{font-size:16px;font-weight:700;color:var(--ink);}
   .stat-tile{background:var(--gray-50);border-radius:10px;padding:10px 12px;}
   .stat-label{font-size:10.5px;color:var(--gray-600);margin-bottom:2px;}
   .stat-value{font-size:15px;font-weight:800;}
@@ -406,6 +414,18 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="modal-merchant-detail">
+  <div class="modal" style="max-width:500px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <h3 id="merchant-detail-name" style="margin:0"></h3>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-merchant-detail')" style="padding:4px 8px">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
+    <div id="merchant-detail-body" style="margin-top:14px"></div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="modal-delete-user">
   <div class="modal">
     <h3 style="color:#DC2626">Delete this user permanently?</h3>
@@ -507,6 +527,7 @@ let API_BASE = "https://api.pasugoarakan.com";
 let TOKEN = null;
 let ME = null;
 let USERS_CACHE = {};
+let ALL_MERCHANTS_CACHE = {};
 let pendingRejectAction = null; // {type:'rider'|'merchant', id}
 
 // ---------------------------------------------------------------- API --
@@ -734,7 +755,7 @@ function skeletonRows(cols, rows = 4) {
 
 // ------------------------------------------------------------ Overview --
 async function loadOverview() {
-  document.getElementById("overview-stats").innerHTML = statSkeletons(4);
+  document.getElementById("overview-stats").innerHTML = statSkeletons(5);
   try {
     const a = await api("/api/admin/analytics/overview");
     document.getElementById("overview-stats").innerHTML = `
@@ -762,7 +783,7 @@ async function loadOverview() {
     labelsEl.innerHTML = days7.map(d => `<span>${d.label}</span>`).join("");
 
     document.getElementById("pending-approvals-sub").textContent =
-      `${a.total_riders} riders · ${a.total_merchants} merchants total on platform`;
+      `${a.total_riders} rider${a.total_riders === 1 ? '' : 's'} · ${a.total_merchants} merchant${a.total_merchants === 1 ? '' : 's'} total on platform`;
   } catch (e) { showToast(e.message, true); }
 
   try {
@@ -991,8 +1012,10 @@ async function loadAllMerchants() {
   tbody.innerHTML = skeletonRows(8);
   try {
     const merchants = await api("/api/admin/merchants");
+    ALL_MERCHANTS_CACHE = {};
+    merchants.forEach(m => ALL_MERCHANTS_CACHE[m.id] = m);
     tbody.innerHTML = merchants.length ? merchants.map(m => `
-      <tr>
+      <tr class="clickable-row" onclick="openMerchantDetail(${m.id})">
         <td class="cell-strong">${escapeHtml(m.business_name)}</td>
         <td class="cell-sub">${escapeHtml(m.owner_name)}</td>
         <td>${chip(m.approval_status)}</td>
@@ -1004,6 +1027,32 @@ async function loadAllMerchants() {
       </tr>`).join("") : `<tr><td colspan="8"><div class="empty-state"><span class="material-symbols-rounded">storefront</span><div>No merchants yet.</div></div></td></tr>`;
   } catch (e) { showToast(e.message, true); }
 }
+
+function openMerchantDetail(id) {
+  const m = ALL_MERCHANTS_CACHE[id];
+  if (!m) return;
+  document.getElementById("merchant-detail-name").textContent = m.business_name;
+  document.getElementById("merchant-detail-body").innerHTML = `
+    <div class="detail-grid">
+      <div><div class="detail-label">Owner</div><div class="detail-value">${escapeHtml(m.owner_name)}</div></div>
+      <div><div class="detail-label">Status</div><div class="detail-value">${chip(m.approval_status)}</div></div>
+      <div><div class="detail-label">Email</div><div class="detail-value">${escapeHtml(m.email || "—")}</div></div>
+      <div><div class="detail-label">Mobile</div><div class="detail-value">${escapeHtml(m.mobile_number || "—")}</div></div>
+      <div><div class="detail-label">Commission rate</div><div class="detail-value">${m.commission_percent}%</div></div>
+      <div><div class="detail-label">Stores</div><div class="detail-value">${m.store_count}</div></div>
+    </div>
+    <div class="section-title" style="margin-top:20px"><h2 style="font-size:14px">Earnings</h2></div>
+    <div class="grid cols-3">
+      <div class="mini-stat"><div class="mini-stat-label">Delivered orders</div><div class="mini-stat-value">${m.total_orders}</div></div>
+      <div class="mini-stat"><div class="mini-stat-label">Gross revenue</div><div class="mini-stat-value">${money(m.gross_revenue)}</div></div>
+      <div class="mini-stat"><div class="mini-stat-label">Net earnings</div><div class="mini-stat-value" style="color:var(--green-dark)">${money(m.total_earnings)}</div></div>
+    </div>
+    <div class="mini-stat" style="margin-top:10px"><div class="mini-stat-label">Current wallet balance (withdrawable)</div><div class="mini-stat-value">${money(m.wallet_balance)}</div></div>
+    ${m.rejection_reason ? `<div class="section-title" style="margin-top:20px"><h2 style="font-size:14px;color:var(--red)">Rejection reason</h2></div><p class="cell-sub">${escapeHtml(m.rejection_reason)}</p>` : ""}
+  `;
+  openModal("modal-merchant-detail");
+}
+
 async function approveMerchant(id) {
   try { await api(`/api/admin/merchants/${id}/approve`, { method: "POST" }); showToast("Merchant approved"); loadPendingMerchants(); loadBadges(); }
   catch (e) { showToast(e.message, true); }
