@@ -217,6 +217,7 @@
     <div class="nav-label">System</div>
     <div class="nav-group">
       <div class="nav-item" data-view="settings"><span class="material-symbols-rounded">tune</span>Settings</div>
+      <div class="nav-item" data-view="backups"><span class="material-symbols-rounded">cloud_done</span>Backups</div>
       <div class="nav-item" data-view="audit"><span class="material-symbols-rounded">history</span>Audit Log</div>
     </div>
 
@@ -387,6 +388,23 @@
         </div>
       </div>
 
+      <!-- ---------------- BACKUPS ---------------- -->
+      <div class="view" id="view-backups">
+        <div style="background:#FEF3E0;border:1px solid #FDE4B8;border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start">
+          <span class="material-symbols-rounded" style="color:#B45309">info</span>
+          <div style="font-size:12.5px;color:#92400E">A daily automatic backup already runs at 3 AM and keeps the last 14 days. Use "Backup now" here if you want an extra one before a risky change — and be very careful with Restore: it permanently overwrites everything currently in your live database.</div>
+        </div>
+        <div class="toolbar">
+          <button class="btn btn-primary btn-sm" onclick="createBackupNow()" id="backup-now-btn">
+            <span class="material-symbols-rounded" style="font-size:16px">backup</span> Backup now
+          </button>
+        </div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>File</th><th>Size</th><th>Created</th><th></th></tr></thead>
+          <tbody id="backups-tbody"></tbody>
+        </table></div>
+      </div>
+
       <!-- ---------------- AUDIT LOG ---------------- -->
       <div class="view" id="view-audit">
         <div class="table-wrap"><table>
@@ -423,6 +441,30 @@
       </button>
     </div>
     <div id="merchant-detail-body" style="margin-top:14px"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-restore-backup">
+  <div class="modal">
+    <h3 style="color:#DC2626">Restore this backup?</h3>
+    <p style="font-size:12.5px;color:var(--gray-600);margin:8px 0 16px">
+      This <strong>permanently overwrites your entire live database</strong> with the contents of
+      <strong id="restore-filename"></strong> — every order, user, wallet, and setting created since
+      this backup was made will be lost. This cannot be undone.
+    </p>
+    <div class="field">
+      <label>Type <strong>RESTORE</strong> to confirm</label>
+      <input type="text" id="restore-confirm-text" placeholder="RESTORE">
+    </div>
+    <div class="field">
+      <label>Enter your admin password to confirm</label>
+      <input type="password" id="restore-password" placeholder="Your password">
+    </div>
+    <div id="restore-error" style="color:#DC2626;font-size:12px;margin-top:6px;min-height:16px"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-restore-backup')">Cancel</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmRestoreBackup()">Restore and overwrite live data</button>
+    </div>
   </div>
 </div>
 
@@ -705,6 +747,7 @@ const loaders = {
   withdrawals: loadWithdrawals,
   support: loadTickets,
   settings: loadSettings,
+  backups: loadBackups,
   audit: loadAuditLog,
 };
 const titles = {
@@ -719,6 +762,7 @@ const titles = {
   withdrawals: ["Withdrawals", "Rider and merchant cash-out requests"],
   support: ["Support Tickets", "Complaints, refunds, and lost items"],
   settings: ["Settings", "Fees, commissions, and platform defaults"],
+  backups: ["Backups", "Database snapshots and disaster recovery"],
   audit: ["Audit Log", "Every sensitive admin action, recorded"],
 };
 
@@ -726,7 +770,7 @@ let currentView = "overview";
 let _autoRefreshTimer = null;
 // Views where a form is actively being edited — auto-refreshing these
 // would silently wipe out whatever the admin is mid-typing.
-const NO_AUTO_REFRESH_VIEWS = new Set(["settings"]);
+const NO_AUTO_REFRESH_VIEWS = new Set(["settings", "backups"]);
 
 function navigate(view) {
   currentView = view;
@@ -1341,6 +1385,70 @@ async function saveSettings() {
     ));
     showToast("Settings saved and now live across the platform.");
   } catch (e) { showToast(e.message, true); }
+}
+
+// ---------------------------------------------------------------- Backups --
+function formatBytes(mb) {
+  return mb < 1 ? `${Math.round(mb * 1024)} KB` : `${mb} MB`;
+}
+
+async function loadBackups() {
+  const tbody = document.getElementById("backups-tbody");
+  tbody.innerHTML = skeletonRows(4);
+  try {
+    const backups = await api("/api/admin/backups");
+    tbody.innerHTML = backups.length ? backups.map(b => `
+      <tr>
+        <td class="cell-strong">${escapeHtml(b.filename)}</td>
+        <td class="cell-sub">${formatBytes(b.size_mb)}</td>
+        <td class="cell-sub">${dt(b.created_at)}</td>
+        <td class="row-actions">
+          <button class="btn btn-danger btn-sm" onclick="openRestoreBackup('${escapeHtml(b.filename)}')">Restore</button>
+        </td>
+      </tr>`).join("")
+      : `<tr><td colspan="4"><div class="empty-state"><span class="material-symbols-rounded">cloud_off</span><div>No backups yet — click "Backup now" above, or wait for tonight's automatic one.</div></div></td></tr>`;
+  } catch (e) { showToast(e.message, true); }
+}
+
+async function createBackupNow() {
+  const btn = document.getElementById("backup-now-btn");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="material-symbols-rounded" style="font-size:16px">hourglass_top</span> Backing up...`;
+  try {
+    const result = await api("/api/admin/backups/create", { method: "POST" });
+    showToast(`Backup created: ${result.filename} (${formatBytes(result.size_mb)})`);
+    loadBackups();
+  } catch (e) {
+    showToast(e.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<span class="material-symbols-rounded" style="font-size:16px">backup</span> Backup now`;
+  }
+}
+
+let RESTORE_TARGET_FILENAME = null;
+function openRestoreBackup(filename) {
+  RESTORE_TARGET_FILENAME = filename;
+  document.getElementById("restore-filename").textContent = filename;
+  document.getElementById("restore-confirm-text").value = "";
+  document.getElementById("restore-password").value = "";
+  document.getElementById("restore-error").textContent = "";
+  openModal("modal-restore-backup");
+}
+async function confirmRestoreBackup() {
+  const confirmation = document.getElementById("restore-confirm-text").value.trim();
+  const password = document.getElementById("restore-password").value;
+  const errEl = document.getElementById("restore-error");
+  if (confirmation !== "RESTORE") { errEl.textContent = 'You must type RESTORE exactly to confirm.'; return; }
+  if (!password) { errEl.textContent = "Enter your admin password to confirm."; return; }
+  try {
+    await api(`/api/admin/backups/${RESTORE_TARGET_FILENAME}/restore`, {
+      method: "POST", body: JSON.stringify({ password, confirmation }),
+    });
+    closeModal("modal-restore-backup");
+    showToast("Database restored successfully.");
+    loadBackups();
+  } catch (e) { errEl.textContent = e.message; }
 }
 
 // ------------------------------------------------------------- Audit log --
