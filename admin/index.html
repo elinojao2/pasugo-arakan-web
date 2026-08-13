@@ -80,6 +80,23 @@
   .icon-btn{width:38px;height:38px;border-radius:10px;background:var(--white);border:1px solid var(--gray-200);
     display:flex;align-items:center;justify-content:center;color:var(--ink-2);position:relative;}
   .icon-btn:hover{background:var(--gray-100);}
+
+  .system-dropdown{position:absolute;top:calc(100% + 8px);right:0;width:230px;background:var(--white);
+    border:1px solid var(--gray-200);border-radius:14px;box-shadow:0 20px 40px -12px rgba(0,0,0,.18);
+    display:none;flex-direction:column;padding:8px;z-index:100;}
+  .system-dropdown.open{display:flex;}
+  .system-dropdown-header{display:flex;align-items:center;gap:10px;padding:10px 8px;margin-bottom:4px;
+    border-bottom:1px solid var(--gray-100);}
+  .system-dropdown-header .who .n{font-size:13px;font-weight:700;color:var(--ink);}
+  .system-dropdown-header .who .r{font-size:11px;color:var(--gray-600);}
+  .system-dropdown-item{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:8px;
+    font-size:13px;font-weight:500;color:var(--ink-2);cursor:pointer;}
+  .system-dropdown-item .material-symbols-rounded{font-size:18px;color:var(--gray-600);}
+  .system-dropdown-item:hover{background:var(--gray-100);}
+  .system-dropdown-item.danger{color:var(--red);}
+  .system-dropdown-item.danger .material-symbols-rounded{color:var(--red);}
+  .system-dropdown-item.danger:hover{background:var(--red-tint);}
+  .system-dropdown-divider{height:1px;background:var(--gray-100);margin:6px 4px;}
   .dot-alert{position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--red);
     border:2px solid var(--white);}
   .content{padding:24px 28px 60px;}
@@ -217,14 +234,6 @@
     <div class="nav-label">System</div>
     <div class="nav-group">
       <div class="nav-item" data-view="settings"><span class="material-symbols-rounded">tune</span>Settings</div>
-      <div class="nav-item" data-view="backups"><span class="material-symbols-rounded">cloud_done</span>Backups</div>
-      <div class="nav-item" data-view="audit"><span class="material-symbols-rounded">history</span>Audit Log</div>
-    </div>
-
-    <div class="sidebar-footer">
-      <div class="avatar" id="user-avatar">A</div>
-      <div class="who"><div class="n" id="user-name">Admin</div><div class="r">Administrator</div></div>
-      <button onclick="logout()" title="Sign out"><span class="material-symbols-rounded">logout</span></button>
     </div>
   </aside>
 
@@ -236,6 +245,27 @@
         <button class="icon-btn" onclick="showToast('Broadcast composer would open here — see Settings for now.')" title="Notify users">
           <span class="material-symbols-rounded">campaign</span>
         </button>
+        <div style="position:relative">
+          <button class="icon-btn" onclick="toggleSystemMenu()" title="System" id="system-menu-btn">
+            <span class="material-symbols-rounded">build</span>
+          </button>
+          <div id="system-menu" class="system-dropdown">
+            <div class="system-dropdown-header">
+              <div class="avatar" id="user-avatar-menu">A</div>
+              <div class="who"><div class="n" id="user-name-menu">Admin</div><div class="r">Administrator</div></div>
+            </div>
+            <div class="system-dropdown-item" onclick="navigate('backups');closeSystemMenu()">
+              <span class="material-symbols-rounded">cloud_done</span> Backups
+            </div>
+            <div class="system-dropdown-item" onclick="navigate('audit');closeSystemMenu()">
+              <span class="material-symbols-rounded">history</span> Audit Log
+            </div>
+            <div class="system-dropdown-divider"></div>
+            <div class="system-dropdown-item danger" onclick="logout()">
+              <span class="material-symbols-rounded">logout</span> Log out
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     <div class="content" id="content">
@@ -602,6 +632,21 @@ function showToast(msg, isErr = false) {
 function openModal(id) { document.getElementById(id).classList.add("active"); }
 function closeModal(id) { document.getElementById(id).classList.remove("active"); }
 
+// -------------------------------------------------------- System dropdown --
+function toggleSystemMenu() {
+  document.getElementById("system-menu").classList.toggle("open");
+}
+function closeSystemMenu() {
+  document.getElementById("system-menu").classList.remove("open");
+}
+document.addEventListener("click", (e) => {
+  const menu = document.getElementById("system-menu");
+  const btn = document.getElementById("system-menu-btn");
+  if (menu && menu.classList.contains("open") && !menu.contains(e.target) && e.target !== btn && !btn.contains(e.target)) {
+    closeSystemMenu();
+  }
+});
+
 // --------------------------------------------------------------- Auth --
 async function doLogin() {
   const id = document.getElementById("login-id").value.trim();
@@ -626,8 +671,8 @@ async function doLogin() {
 function enterApp() {
   document.getElementById("login-screen").style.display = "none";
   document.getElementById("app").classList.add("active");
-  document.getElementById("user-name").textContent = ME.full_name;
-  document.getElementById("user-avatar").textContent = (ME.full_name || "A").charAt(0).toUpperCase();
+  document.getElementById("user-name-menu").textContent = ME.full_name;
+  document.getElementById("user-avatar-menu").textContent = (ME.full_name || "A").charAt(0).toUpperCase();
   navigate("overview");
   loadBadges();
   startSosPolling();
