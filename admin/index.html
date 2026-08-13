@@ -573,6 +573,7 @@ async function doLogin() {
     if (data.user.role !== "admin") throw new Error("This account is not an admin account.");
     TOKEN = data.access_token;
     ME = data.user;
+    localStorage.setItem("pasugo_admin_token", TOKEN);
     enterApp();
   } catch (e) {
     errEl.textContent = e.message;
@@ -591,11 +592,32 @@ function enterApp() {
 
 function logout() {
   TOKEN = null; ME = null;
+  localStorage.removeItem("pasugo_admin_token");
   document.getElementById("app").classList.remove("active");
   document.getElementById("login-screen").style.display = "flex";
   document.getElementById("login-pass").value = "";
   stopSosPolling();
 }
+
+// Runs once when the page first loads — if a token was saved from a
+// previous session, validate it and skip straight past the login screen
+// instead of forcing a fresh sign-in on every reload.
+async function tryRestoreSession() {
+  const saved = localStorage.getItem("pasugo_admin_token");
+  if (!saved) return;
+  TOKEN = saved;
+  try {
+    const data = await api("/api/auth/me");
+    if (data.role !== "admin") throw new Error("Not an admin account");
+    ME = data;
+    enterApp();
+  } catch (e) {
+    // Token expired/invalid — clear it and fall back to the login screen.
+    TOKEN = null;
+    localStorage.removeItem("pasugo_admin_token");
+  }
+}
+tryRestoreSession();
 
 // ----------------------------------------------------------- SOS safety --
 // Runs independently of whichever view is open — an emergency shouldn't

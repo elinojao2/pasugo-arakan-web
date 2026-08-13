@@ -594,6 +594,7 @@ async function doLogin() {
     if (!ME.is_mobile_verified && ME.mobile_number) {
       showOtpScreen(ME.mobile_number, true);
     } else {
+      localStorage.setItem("pasugo_merchant_token", TOKEN);
       enterApp();
     }
   } catch (e) { errEl.textContent = e.message; }
@@ -644,6 +645,7 @@ async function doVerifyOtp() {
   try {
     const data = await api("/api/auth/otp/verify", { method: "POST", body: JSON.stringify({ mobile_number: PENDING_MOBILE, otp: code }) });
     TOKEN = data.access_token; ME = data.user;
+    localStorage.setItem("pasugo_merchant_token", TOKEN);
     document.getElementById("otp-screen").style.display = "none";
     enterApp();
   } catch (e) { errEl.textContent = e.message; }
@@ -659,7 +661,34 @@ async function enterApp() {
   await loadStores();
   navigate("overview");
 }
-function logout() { TOKEN = null; ME = null; document.getElementById("app").classList.remove("active"); document.getElementById("login-screen").style.display = "flex"; }
+function logout() {
+  TOKEN = null; ME = null;
+  localStorage.removeItem("pasugo_merchant_token");
+  document.getElementById("app").classList.remove("active");
+  document.getElementById("login-screen").style.display = "flex";
+}
+
+// Runs once on page load — restores a previous session instead of forcing
+// a fresh sign-in every time the page reloads.
+async function tryRestoreSession() {
+  const saved = localStorage.getItem("pasugo_merchant_token");
+  if (!saved) return;
+  TOKEN = saved;
+  try {
+    const data = await api("/api/auth/me");
+    if (data.role !== "merchant") throw new Error("Not a merchant account");
+    ME = data;
+    if (!ME.is_mobile_verified && ME.mobile_number) {
+      showOtpScreen(ME.mobile_number, true);
+    } else {
+      await enterApp();
+    }
+  } catch (e) {
+    TOKEN = null;
+    localStorage.removeItem("pasugo_merchant_token");
+  }
+}
+tryRestoreSession();
 
 // ------------------------------------------------------------- Stores --
 async function loadStores() {
