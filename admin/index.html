@@ -353,7 +353,7 @@
           </select>
         </div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Amount</th><th>Method</th><th>Status</th><th>Requested</th><th></th></tr></thead>
+          <thead><tr><th>Recipient</th><th>Amount</th><th>Method</th><th>Status</th><th>Requested</th><th></th></tr></thead>
           <tbody id="withdrawals-tbody"></tbody>
         </table></div>
       </div>
@@ -528,6 +528,7 @@ let TOKEN = null;
 let ME = null;
 let USERS_CACHE = {};
 let ALL_MERCHANTS_CACHE = {};
+let WITHDRAWALS_CACHE = {};
 let pendingRejectAction = null; // {type:'rider'|'merchant', id}
 
 // ---------------------------------------------------------------- API --
@@ -1208,16 +1209,67 @@ async function loadWithdrawals() {
   try {
     const status = document.getElementById("withdrawals-status-filter").value;
     const list = await api("/api/admin/withdrawals?status=" + status);
+    WITHDRAWALS_CACHE = {};
+    list.forEach(w => WITHDRAWALS_CACHE[w.id] = w);
     document.getElementById("withdrawals-tbody").innerHTML = list.length ? list.map(w => `
-      <tr><td class="cell-strong">${money(w.amount)}</td><td style="text-transform:uppercase;font-size:11px">${w.method}</td>
+      <tr>
+        <td class="cell-strong">${escapeHtml(w.owner_name || "—")}<div class="cell-sub" style="text-transform:capitalize">${w.owner_role || ""}</div></td>
+        <td class="cell-strong">${money(w.amount)}</td><td style="text-transform:uppercase;font-size:11px">${w.method}</td>
       <td>${chip(w.status)}</td><td class="cell-sub">${dt(w.requested_at)}</td>
       <td class="row-actions">
+        <button class="btn btn-ghost btn-sm" onclick="printWithdrawalReceipt(${w.id})"><span class="material-symbols-rounded" style="font-size:14px">print</span></button>
         ${w.status === "pending" ? `
           <button class="btn btn-primary btn-sm" onclick="completeWithdrawal(${w.id})">Mark paid</button>
           <button class="btn btn-danger btn-sm" onclick="rejectWithdrawal(${w.id})">Reject</button>` : ""}
       </td></tr>`).join("")
-      : `<tr><td colspan="5"><div class="empty-state"><span class="material-symbols-rounded">payments</span><div>No withdrawals here.</div></div></td></tr>`;
+      : `<tr><td colspan="6"><div class="empty-state"><span class="material-symbols-rounded">payments</span><div>No withdrawals here.</div></div></td></tr>`;
   } catch (e) { showToast(e.message, true); }
+}
+
+function printWithdrawalReceipt(id) {
+  const w = WITHDRAWALS_CACHE[id];
+  if (!w) return;
+  const dest = w.destination_details || {};
+  const win = window.open("", "_blank", "width=480,height=700");
+  win.document.write(`
+    <html><head><title>Withdrawal Receipt #${w.id}</title>
+    <style>
+      body{font-family:Arial,sans-serif;padding:32px;color:#111827;max-width:420px;margin:0 auto}
+      h1{font-size:18px;margin:0 0 4px}
+      .sub{color:#6B7280;font-size:12px;margin-bottom:24px}
+      table{width:100%;border-collapse:collapse;margin-top:16px}
+      td{padding:8px 0;font-size:13px;border-bottom:1px solid #E5E7EB}
+      td:first-child{color:#6B7280;width:45%}
+      td:last-child{font-weight:600;text-align:right}
+      .amount{font-size:26px;font-weight:800;margin:20px 0;text-align:center}
+      .status{display:inline-block;padding:4px 12px;border-radius:100px;font-size:11px;font-weight:700;text-transform:uppercase}
+      .status.completed{background:#DCFCE7;color:#15803D}
+      .status.pending{background:#FEF3E0;color:#B45309}
+      .status.rejected{background:#FEE2E2;color:#DC2626}
+      .footer{margin-top:32px;font-size:10.5px;color:#9CA3AF;text-align:center}
+    </style></head>
+    <body>
+      <h1>Pasugo Arakan — Withdrawal Receipt</h1>
+      <div class="sub">Receipt #${w.id} · Generated ${new Date().toLocaleString()}</div>
+      <div class="amount">₱${Number(w.amount).toLocaleString("en-PH", { minimumFractionDigits: 2 })}</div>
+      <table>
+        <tr><td>Recipient</td><td>${escapeHtml(w.owner_name || "—")}</td></tr>
+        <tr><td>Role</td><td style="text-transform:capitalize">${w.owner_role || "—"}</td></tr>
+        <tr><td>Contact</td><td>${escapeHtml(w.owner_contact || "—")}</td></tr>
+        <tr><td>Method</td><td style="text-transform:uppercase">${w.method}</td></tr>
+        ${dest.account_number ? `<tr><td>Account number</td><td>${escapeHtml(dest.account_number)}</td></tr>` : ""}
+        ${dest.account_name ? `<tr><td>Account name</td><td>${escapeHtml(dest.account_name)}</td></tr>` : ""}
+        ${dest.bank_name ? `<tr><td>Bank</td><td>${escapeHtml(dest.bank_name)}</td></tr>` : ""}
+        <tr><td>Status</td><td><span class="status ${w.status}">${w.status}</span></td></tr>
+        <tr><td>Requested</td><td>${dt(w.requested_at)}</td></tr>
+        ${w.processed_at ? `<tr><td>Processed</td><td>${dt(w.processed_at)}</td></tr>` : ""}
+        ${w.rejection_reason ? `<tr><td>Rejection reason</td><td>${escapeHtml(w.rejection_reason)}</td></tr>` : ""}
+      </table>
+      <div class="footer">Pasugo Arakan · Arakan, North Cotabato · pasugoarakan@gmail.com</div>
+      <script>window.onload = () => window.print();</script>
+    </body></html>
+  `);
+  win.document.close();
 }
 async function completeWithdrawal(id) {
   try { await api(`/api/admin/withdrawals/${id}/complete`, { method: "POST" }); showToast("Marked as paid"); loadWithdrawals(); }
