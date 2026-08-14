@@ -168,6 +168,16 @@
 </head>
 <body>
 
+<!-- ================= MAINTENANCE ================= -->
+<div id="maintenance-screen" style="display:none;position:fixed;inset:0;z-index:99999;background:linear-gradient(160deg,#0F172A 0%,#16A34A 140%);
+  color:#fff;align-items:center;justify-content:center;text-align:center;padding:32px;font-family:'Poppins',sans-serif">
+  <div style="max-width:420px">
+    <span class="material-symbols-rounded" style="font-size:64px;color:#F2A93B">build</span>
+    <h1 style="font-size:24px;margin:18px 0 10px">We'll be right back</h1>
+    <p id="maintenance-message-text" style="font-size:14.5px;color:#CBD5E1;line-height:1.6"></p>
+  </div>
+</div>
+
 <div id="login-screen">
   <div class="login-card">
     <div class="login-brand"><img src="../assets/favicon.png" alt="Pasugo Arakan" class="mark" style="object-fit:contain;background:transparent"><div><div class="name">Pasugo Arakan</div><div class="sub">Merchant Dashboard</div></div></div>
@@ -688,7 +698,25 @@ async function tryRestoreSession() {
     localStorage.removeItem("pasugo_merchant_token");
   }
 }
-tryRestoreSession();
+async function checkMaintenanceMode() {
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/system-status`);
+    const data = await res.json();
+    const screen = document.getElementById("maintenance-screen");
+    if (data.maintenance_mode) {
+      document.getElementById("maintenance-message-text").textContent = data.maintenance_message;
+      screen.style.display = "flex";
+    } else {
+      screen.style.display = "none";
+    }
+    return !!data.maintenance_mode;
+  } catch (e) {
+    return false;
+  }
+}
+setInterval(checkMaintenanceMode, 30000);
+
+checkMaintenanceMode().then(isDown => { if (!isDown) tryRestoreSession(); });
 
 // ------------------------------------------------------------- Stores --
 async function loadStores() {
