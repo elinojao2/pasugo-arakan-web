@@ -260,7 +260,7 @@
       <div class="nav-item" data-view="users"><span class="material-symbols-rounded">group</span>Users</div>
       <div class="nav-item" data-view="categories"><span class="material-symbols-rounded">category</span>Categories</div>
       <div class="nav-item" data-view="promos"><span class="material-symbols-rounded">sell</span>Promo Codes</div>
-      <div class="nav-item" data-view="withdrawals"><span class="material-symbols-rounded">payments</span>Withdrawals</div>
+      <div class="nav-item" data-view="withdrawals"><span class="material-symbols-rounded">payments</span>Withdrawals<span class="badge" id="badge-withdrawals" style="display:none">0</span></div>
       <div class="nav-item" data-view="support"><span class="material-symbols-rounded">support_agent</span>Support Tickets</div>
     </div>
     <div class="nav-label">System</div>
@@ -729,7 +729,7 @@ function enterApp() {
   document.getElementById("user-name-menu").textContent = ME.full_name;
   document.getElementById("user-avatar-menu").textContent = (ME.full_name || "A").charAt(0).toUpperCase();
   navigate("overview");
-  loadBadges();
+  startRequestPolling();
   startSosPolling();
 }
 
@@ -740,6 +740,7 @@ function logout() {
   document.getElementById("login-screen").style.display = "flex";
   document.getElementById("login-pass").value = "";
   stopSosPolling();
+  stopRequestPolling();
 }
 
 // Runs once when the page first loads — if a token was saved from a
@@ -895,16 +896,60 @@ document.querySelectorAll(".nav-item").forEach(n => n.addEventListener("click", 
 
 async function loadBadges() {
   try {
-    const [riders, merchants] = await Promise.all([
-      api("/api/admin/riders/pending"), api("/api/admin/merchants/pending"),
+    const [riders, merchants, withdrawals] = await Promise.all([
+      api("/api/admin/riders/pending"), api("/api/admin/merchants/pending"), api("/api/admin/withdrawals"),
     ]);
     setBadge("badge-riders", riders.length);
     setBadge("badge-merchants", merchants.length);
-  } catch (e) { /* silent on dashboard chrome */ }
+    setBadge("badge-withdrawals", withdrawals.length);
+    return { riders: riders.length, merchants: merchants.length, withdrawals: withdrawals.length };
+  } catch (e) { /* silent on dashboard chrome */ return null; }
 }
 function setBadge(id, n) {
   const el = document.getElementById(id);
   if (n > 0) { el.style.display = "inline-block"; el.textContent = n; } else { el.style.display = "none"; }
+}
+
+// ------------------------------------------------------- New request tone --
+// Watches Riders, Merchants, and Withdrawals pending counts regardless of
+// which tab is open. Plays a tone and toasts the moment any category's
+// count genuinely increases — not just on every poll, so it only fires
+// for real new arrivals, not routine badge refreshes.
+let _requestPollTimer = null;
+let _lastCounts = null; // null = not yet primed — first poll just establishes the baseline
+
+function startRequestPolling() {
+  clearInterval(_requestPollTimer);
+  _lastCounts = null;
+  checkForNewRequests();
+  _requestPollTimer = setInterval(checkForNewRequests, 15000);
+}
+function stopRequestPolling() {
+  clearInterval(_requestPollTimer);
+  _requestPollTimer = null;
+  _lastCounts = null;
+}
+
+async function checkForNewRequests() {
+  const counts = await loadBadges();
+  if (!counts) return;
+
+  if (_lastCounts === null) {
+    _lastCounts = counts;
+    return;
+  }
+
+  const grew = [];
+  if (counts.riders > _lastCounts.riders) grew.push(`${counts.riders - _lastCounts.riders} new rider application${counts.riders - _lastCounts.riders > 1 ? "s" : ""}`);
+  if (counts.merchants > _lastCounts.merchants) grew.push(`${counts.merchants - _lastCounts.merchants} new merchant application${counts.merchants - _lastCounts.merchants > 1 ? "s" : ""}`);
+  if (counts.withdrawals > _lastCounts.withdrawals) grew.push(`${counts.withdrawals - _lastCounts.withdrawals} new withdrawal request${counts.withdrawals - _lastCounts.withdrawals > 1 ? "s" : ""}`);
+
+  if (grew.length > 0) {
+    const audio = document.getElementById("new-request-chime-audio");
+    if (audio) audio.play().catch(() => {});
+    showToast(grew.join(" · "));
+  }
+  _lastCounts = counts;
 }
 
 // ------------------------------------------------------------ Helpers --
@@ -1430,7 +1475,8 @@ function printWithdrawalReceipt(id) {
       </table>
       <div class="footer">Pasugo Arakan · Arakan, North Cotabato · pasugoarakan@gmail.com</div>
       <script>window.onload = () => window.print();<\/script>
-    </body></html>
+    <audio id="new-request-chime-audio" preload="auto"><source src="data:audio/mp3;base64,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" type="audio/mpeg"></audio>
+</body></html>
   `);
   win.document.close();
 }
