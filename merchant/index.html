@@ -81,9 +81,11 @@
   .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:20px;font-size:11.5px;font-weight:600;white-space:nowrap;}
   .chip .pulse{width:6px;height:6px;border-radius:50%;background:currentColor;}
   .chip.pending{background:var(--amber-tint);color:#B45309;} .chip.pending .pulse{animation:pulse 1.4s infinite;}
-  .chip.accepted,.chip.shopping,.chip.picked_up,.chip.on_the_way,.chip.arrived,.chip.approved,.chip.open{background:var(--blue-tint);color:#1D4ED8;}
+  .chip.confirmed,.chip.preparing{background:var(--amber-tint);color:#B45309;}
+  .chip.ready_for_pickup{background:#F3E8FF;color:#7E22CE;}
+  .chip.assigned,.chip.shopping,.chip.picked_up,.chip.on_the_way,.chip.arrived,.chip.approved,.chip.open{background:var(--blue-tint);color:#1D4ED8;}
   .chip.delivered,.chip.active,.chip.available,.chip.paid{background:var(--green-tint);color:var(--green-dark);}
-  .chip.cancelled,.chip.rejected,.chip.unavailable,.chip.out{background:var(--red-tint);color:var(--red);}
+  .chip.cancelled,.chip.rejected,.chip.unavailable,.chip.out,.chip.failed_to_deliver{background:var(--red-tint);color:var(--red);}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(180,83,9,.5);}70%{box-shadow:0 0 0 6px rgba(180,83,9,0);}100%{box-shadow:0 0 0 0 rgba(180,83,9,0);}}
 
   .grid{display:grid;gap:16px;} .grid.cols-4{grid-template-columns:repeat(4,1fr);} .grid.cols-3{grid-template-columns:repeat(3,1fr);}
@@ -292,9 +294,12 @@
       <div class="view" id="view-orders">
         <div class="toolbar">
           <select class="filter" id="orders-status-filter" onchange="loadOrders()">
-            <option value="">All statuses</option><option value="pending">Pending</option><option value="accepted">Accepted</option>
+            <option value="">All statuses</option><option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option><option value="preparing">Preparing</option>
+            <option value="ready_for_pickup">Ready for pickup</option><option value="assigned">Rider assigned</option>
             <option value="picked_up">Picked up</option><option value="on_the_way">On the way</option>
-            <option value="delivered">Delivered</option><option value="cancelled">Cancelled</option>
+            <option value="arrived">Arrived</option><option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option><option value="failed_to_deliver">Failed delivery</option>
           </select>
         </div>
         <div class="ticket-rail" id="orders-rail"></div>
@@ -908,7 +913,7 @@ async function loadOverview() {
   document.getElementById("recent-orders-tbody").innerHTML = skeletonRows(6);
   try {
     const orders = await api("/api/merchant/orders");
-    setBadge(orders.filter(o => o.status === "pending").length);
+    setBadge(orders.filter(o => ["pending","confirmed","preparing"].includes(o.status)).length);
     document.getElementById("recent-orders-tbody").innerHTML = orders.slice(0, 8).length ? orders.slice(0,8).map(o => `
       <tr><td class="cell-strong">${o.order_number}</td><td>${o.order_type.replace("_"," ")}</td><td class="cell-strong">${money(o.total_amount)}</td>
       <td style="text-transform:uppercase;font-size:11px">${o.payment_method}</td><td>${chip(o.status)}</td><td class="cell-sub">${dt(o.placed_at)}</td></tr>`
@@ -924,7 +929,7 @@ async function loadOrders() {
   try {
     const status = document.getElementById("orders-status-filter").value;
     let orders = await api("/api/merchant/orders" + (status ? "?status="+status : ""));
-    setBadge(orders.filter(o => o.status === "pending").length);
+    setBadge(orders.filter(o => ["pending","confirmed","preparing"].includes(o.status)).length);
     rail.innerHTML = orders.length ? orders.map(o => `
       <div class="ticket status-${o.status}">
         <div class="ticket-top">
@@ -936,8 +941,10 @@ async function loadOrders() {
           <span class="cell-strong">${money(o.total_amount)}</span>
           <div class="row-actions">
             <button class="btn btn-ghost btn-sm" onclick="openOrderDetail(${o.id})">View</button>
-            ${o.status === "pending" ? `<button class="btn btn-primary btn-sm" onclick="openOrderDetail(${o.id})">Review &amp; Accept</button>
+            ${o.status === "pending" && o.order_type === "store_order" ? `<button class="btn btn-primary btn-sm" onclick="openOrderDetail(${o.id})">Review &amp; Confirm</button>
               <button class="btn btn-danger btn-sm" onclick="cancelOrder(${o.id})">Reject</button>` : ""}
+            ${o.status === "confirmed" ? `<button class="btn btn-primary btn-sm" onclick="advanceOrder(${o.id},'preparing')">Start preparing</button>` : ""}
+            ${o.status === "preparing" ? `<button class="btn btn-primary btn-sm" onclick="advanceOrder(${o.id},'ready_for_pickup')">Mark ready for pickup</button>` : ""}
           </div>
         </div>
       </div>`).join("") : `<div class="card empty-state"><span class="material-symbols-rounded">inbox</span><div>No orders match this filter.</div></div>`;
@@ -991,7 +998,30 @@ async function openOrderDetail(id) {
       addressBlock.style.display = "none";
     }
 
-    document.getElementById("od-pending-actions").style.display = o.status === "pending" ? "flex" : "none";
+    // Merchant prep flow: pending -> confirmed -> preparing -> ready_for_pickup.
+    // Show whichever single "advance" action is relevant right now, plus a
+    // cancel option at any stage still before a rider has claimed it.
+    const MERCHANT_ADVANCE = {
+      pending: { label: "Confirm order", next: "confirmed" },
+      confirmed: { label: "Start preparing", next: "preparing" },
+      preparing: { label: "Mark ready for pickup", next: "ready_for_pickup" },
+    };
+    const pendingActions = document.getElementById("od-pending-actions");
+    const advance = MERCHANT_ADVANCE[o.status];
+    if (advance && o.order_type === "store_order") {
+      pendingActions.style.display = "flex";
+      pendingActions.innerHTML = `
+        <button class="btn btn-danger btn-sm" onclick="rejectFromDetail()">Cancel order</button>
+        <button class="btn btn-primary btn-sm" onclick="acceptFromDetail('${advance.next}')">${advance.label}</button>
+      `;
+    } else if (o.status === "pending") {
+      // non-store order types (pasabuy/courier/pa_angkas) have no
+      // merchant prep steps at all — pending here just means "waiting
+      // for a rider," nothing for the merchant to advance manually.
+      pendingActions.style.display = "none";
+    } else {
+      pendingActions.style.display = "none";
+    }
 
     const items = o.items || [];
     document.getElementById("od-items").innerHTML = items.length
@@ -1076,9 +1106,9 @@ function haversineKm(lat1, lng1, lat2, lng2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-async function acceptFromDetail() {
+async function acceptFromDetail(targetStatus) {
   if (!_currentOrderDetail) return;
-  await advanceOrder(_currentOrderDetail.id, "accepted");
+  await advanceOrder(_currentOrderDetail.id, targetStatus);
   closeModal("modal-order-detail");
 }
 async function rejectFromDetail() {
