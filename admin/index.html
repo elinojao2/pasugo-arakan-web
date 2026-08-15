@@ -274,6 +274,9 @@
       <div><h1 id="page-title">Overview</h1><div class="crumbs" id="page-crumb">Platform performance at a glance</div></div>
       <div class="topbar-actions">
         <button class="icon-btn" onclick="refreshCurrentView()" title="Refresh"><span class="material-symbols-rounded">refresh</span></button>
+        <button class="icon-btn" onclick="testNotificationSound()" title="Test notification sound">
+          <span class="material-symbols-rounded">volume_up</span>
+        </button>
         <button class="icon-btn" onclick="showToast('Broadcast composer would open here — see Settings for now.')" title="Notify users">
           <span class="material-symbols-rounded">campaign</span>
         </button>
@@ -894,6 +897,16 @@ function navigate(view) {
 function refreshCurrentView() { loaders[currentView] && loaders[currentView](); showToast("Refreshed"); }
 document.querySelectorAll(".nav-item").forEach(n => n.addEventListener("click", () => navigate(n.dataset.view)));
 
+async function testNotificationSound() {
+  const audio = document.getElementById("new-request-chime-audio");
+  if (!audio) { showToast("Audio element not found — check the deployed file", true); return; }
+  try {
+    await audio.play();
+    showToast("Sound played — if you heard it, notifications are working");
+  } catch (e) {
+    showToast(`Sound blocked: ${e.message}`, true);
+  }
+}
 async function loadBadges() {
   try {
     const [riders, merchants, withdrawals] = await Promise.all([
