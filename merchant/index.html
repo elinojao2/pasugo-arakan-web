@@ -686,12 +686,57 @@ async function enterApp() {
   document.getElementById("st-category").innerHTML = CATEGORIES.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join("");
   await loadStores();
   navigate("overview");
+  startNewOrderPolling();
 }
 function logout() {
   TOKEN = null; ME = null;
   localStorage.removeItem("pasugo_merchant_token");
   document.getElementById("app").classList.remove("active");
   document.getElementById("login-screen").style.display = "flex";
+  stopNewOrderPolling();
+}
+
+// --------------------------------------------------------- New order tone --
+// Runs independently of whichever tab is open — a merchant shouldn't miss
+// a new order just because they happened to be looking at Products.
+let _newOrderPollTimer = null;
+let _seenOrderIds = null; // null = not yet initialized (first poll primes it, doesn't alert)
+
+function startNewOrderPolling() {
+  clearInterval(_newOrderPollTimer);
+  _seenOrderIds = null;
+  checkForNewOrders();
+  _newOrderPollTimer = setInterval(checkForNewOrders, 15000);
+}
+function stopNewOrderPolling() {
+  clearInterval(_newOrderPollTimer);
+  _newOrderPollTimer = null;
+  _seenOrderIds = null;
+}
+
+async function checkForNewOrders() {
+  try {
+    const orders = await api("/api/merchant/orders?status=pending");
+    const currentIds = new Set(orders.map(o => o.id));
+
+    if (_seenOrderIds === null) {
+      // First poll after login/page load — just establish the baseline,
+      // don't alert for orders that were already pending before now.
+      _seenOrderIds = currentIds;
+      return;
+    }
+
+    const newOnes = orders.filter(o => !_seenOrderIds.has(o.id));
+    if (newOnes.length > 0) {
+      const audio = document.getElementById("new-order-chime-audio");
+      if (audio) audio.play().catch(() => {});
+      const label = newOnes.length === 1
+        ? `New order #${newOnes[0].order_number}`
+        : `${newOnes.length} new orders received`;
+      showToast(label);
+    }
+    _seenOrderIds = currentIds;
+  } catch (e) { /* transient network issue — try again on next poll */ }
 }
 
 // Runs once on page load — restores a previous session instead of forcing
@@ -1078,7 +1123,8 @@ function printReceipt() {
       <div class="row total"><span>TOTAL</span><span>${money(o.total_amount)}</span></div>
       <hr>
       <div style="text-align:center;margin-top:10px">Thank you!</div>
-    </body></html>`;
+    <audio id="new-order-chime-audio" preload="auto"><source src="data:audio/mp3;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjYwLjE2LjEwMAAAAAAAAAAAAAAA//tAwAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAAWAAAOBwBBQUFBSkpKSkpRUVFRWVlZWVlgYGBgaWlpaWlzc3NzgICAgICJiYmJkpKSkpKbm5ubpaWlpaWurq6urre3t7fAwMDAwMzMzMzV1dXV1d7e3t7n5+fn5+/v7+/4+Pj4+P////8AAAAATGF2YzYwLjMxAAAAAAAAAAAAAAAAJAVzAAAAAAAADgdfrbE/AAAAAAD/+8DEAAANMCdG9PCAKdKVaj848oAAId+st6vV6vV6vZ54CsQ8t49Ym4m5CzrZ44AAAABHh4f/wAAR/h4f/8AHeZ/+Bv/45n/+b//Yj/9G//8QAYAAGHh4eHgAAAAAGHh4eHgAAAAAGHh4ePAAAAAAMPDw8PAAAAAAMPDw8PABHAAABhkCgDYJhAIBAKAAEJwGAU0SCN3jAAhMMhgAKcuAa6PEHBYbGZQAAQAA4MNBwy2GGcj5FxH0j/xCT+NJWsMT/kGUqGnLa26//qZDjmYVbn7///6dhK5XQXv/////72E+fVevf4NAyCoiPf6wVEQVBUsqeBAAACAAPgAAKsEltUeXoLPA0EYwCQLjAzACMB8HIwswkjRjGRMLoIcoBYYkXCbdyQBEYl//1HwWEwrZEgJJBpCgOoBx/x//qhaMKS4l1jLCh07qNwiA2FWWhQdF3Sb6f/v91/qqNUZy6gWAgDdgAf0AADnQLZC8KsiaYYC5RoqjAjQGTezzy0dgI/6iIqHhp4OEg6/MA7hAFDg/3oxyuvUFt6qXwGGck/AXQiA2FWW+kN8W7sSklbligqaCL9kHcJA4cAA+AAAyDcekK7Vi2JlDuUfcs2NBE8s88sisCpD/5YWKuIvfEYGUDwEAkOAD/juq3YLBXVUCLNOyebMELBa20680htqb//60e3P1/M0wtaoAgIA5cGv+AAArM9BOlZFUwgWtH0bviwPPLPMleaxoTd1r7XKSlrxEHTdjyAA4QBO4BVeIEZ1UVjDCayfKQANATFrMDTt8W//QwWJJ7d93gDBXmA2/AAAt08vrwtpgFwizQSwKkUfAwqjwAQBgJubwXWX0L/w+BhwN/v3T710d3WZJWSUQPUZ2AQBWaP/xzt6bhCVZgAFK4YGUOKoineTcHsLXI+uhu78RCR4f2K5u6DaOcz0Ue/mzMpBa6hiyd4AwBmAPvgAAM+W5Yu8yKAuF/qhJFv/7IMTzgEfgLSf95IAgqQ+lvZ6JFBQODh1RTBQBmHwwXvUwYe78Ut8/8jBkTXsyO5CvduNEJtYcCAFZgw+H9pH/awCShQq9GhFgANG5zRYGGwOuyG0vGHuQ7kXsd7fIkH+BhWKx1U9VZ3IAALmP/gAALHIbuSss4BQkr4otMKSEewD/+xDE9QBFhCUn4OvCoKMEpTwM9ByIWHkhCGcfoDnPG8HMF2aM3BHMRQQGAPBQBIsRCJxihl+QAQGBQ4jdQjl8q9MuDaAr7V3lGA9N99hrLtWkkSKoVJDKwoJQqnEW6KnMCACIwZTETf/7EMT0AEVcJSng56KgoQ+lfB6IbA5DZOSpNw2wC2jBXFPMAcNCC5ircA48jiszs1UUpbp9hlpsH3M0ZoeUEABt/wAAE5c9mCi5kHnxapBrCE3SoGjDVbPsYIcKBkoBl6mSholaiJ2S//sQxPOAxYQnKeBnoqCHBKU4DPRUjvs5zvPN/X4PeuOYQO9k/jM8wgAAP/+N8x/K00ZYeAGhtYSvchdZeAwEQDzB0DaNHIK89ZgwpdN5uo0QpRChgnJYoYgUiBgKlx9cFRcK3nX1AAj/+yDE9gBHEH0p7PRI6NyPpT3cFVWGAABR/QAAJY87JUjU7BGd4F9jABGKRTzGj76YTEYGYwsDV7PzFrN+cqVT3C1p4/xf0ACw6D0D9QWzB6WaturA/bJERxICgwgQPBqT48SczaQtSuZ2Y1S5UNqy/ua4D7UAaZQAAF+4AAA/Tlqa//sgxPSARuh1Kex0SODDiOU9jgkcKuHQGXmXkaWmgFQHMAg0MM4jNq22OEYKahQOY7Cp2/ei9e40qIh1idzyKwBplyAAYfgfuDGeq3ILKRIgGe1iwsAIGA4xePU+6J4/6j6dLNLFcqM02NNVprL+9ogFBZ1SAFiVAAFN/gAAPm7C7//7QMT2gEl4dSfs9G6pHI0k/Y8VXVmDo0qAKVlCPYIMYHheYuO0eMMWBi7MUQBQMbeBJ+xbllTPLTbiB5x8a1KkzQAE04gALxwIZZUXJMi0TgYF9mUl5gADZie2B7qnphIHJjKDgGBVMJrsPS21O3KU8XHGPKPEFVUAWoYAAUH+AAA+S0y3DX1MC75oUztMQAhMBQCAwdxXTQNEuBwbJgUAJJzuhE5ivhT2zPLIEJmGF4f9YADw//sgxP2AR6RTKeRxJykDCGU97SXFwAAJt6L8CqbBUSHpYU9ajhYKMhoYTSydCOYOiAZDAuCgmRxZc/Mus0d0GULDquOFXB+f5qz///f///9SAGmVEAFRxgAAP26Cq7cFY10F22WJhgoADBEBzG4ij/wjzukCEymU8MBSmtdqWL7u5//7IMT1AUZ8OyvgY4Tgt4dlPA9obF3/KAARLAAAo/wljfpqiA44ALtbgsGKEC4ZgCMDD1uTCEKQMdQkCqvnVi07fkFSqe5VwOJbNRNoJDYAaJQQAF/4AAA/UFs8WShC36sDbqwCwA5EBIYP4MxpMgKngVmjSAgCuZ2Y1S5TN+ysyPf/+yDE+oBHADsp4HdDYNKHpXwO5Gx2afnrGx+ADTSgAAvydtdCeRCpVcLCcNWwLjMACoxf1T1t6MdA4eVhWAWrQqiv8l9e5vxwuuoAB4UgAFH+AAAjzwq3IAmSpnN6pIIANMBEAowfhZTTEDyOnAO0tMSCSJZ0/sapZdVl1nlXsBQ2//sgxPqAR0Q7KeDjpODYB2U8DHScOJpASVhZBm8ACIQAAE/+D6LvbxQ9chddlCX4EAQwRC0xgco9GX8JhnLCoUOPFLdjOWVM7xcAPGJSMCYzdUYqAAmoEABvgAAAJS5SDpgKW6BiYk0lEIGAuYdsQdwpCYLBeYrgoDgJU2cWHqW1If/7IMT4gEdMOSng48Tg+Qck/Ax0nLlLa5HibQwNMIAACb/j9f/6bmnI1tQBnaARnagBZcwEgGDB7FBNCUSAB1TPFE04Aj9yvoDFs/oz5LE3OzMQmCaPLvK1AGaWAABfeAAAPpHy0FsgDYDRQlQ1xLAhMhC4wYlE4eawdCYx+BEHA8n/+yDE8oBGfDsr4HdDYNuHZTwMdJyq05+ZdZn69Nj9EhUZe//x4zMBrkABEMIADRBub4M3ToBQDtcU3BwAGB4AmNQIH6xXmKoIAwF1DnRiUzW3MWLXO//5n6BVKgAIhgABYf0AACkkbyrxYQgjiDc1DBGFzAFcMERMFA8SQSQLbQLP//sgxPOAxyw7KeB7Q2i7h6V4HHCcWb4IIKb/ld7bWkGN6AAHiSABj/8V5JALajwBhAQQOzRIMmAExDJI7NCAwwAkwXApQF2oZlVXKOy6dtbu/qZKVcpbwiD2/gDp310Af4gKgcAAAV5ZJ3wZGgIfdgCAsGBAw7CzlcAGhSRFRTmDof/7MMT1gEfgPSfge0Ug2QdlPA7opFO3+Czp//5s5Yw4ACJlQA4/4GqsSfppq/oS2yOLDjBiNDUYLA4IDrXoy/0tpsRIosz7KltUrb0ClQAGeFAFcD4AADDOxdawl+1hL8CASt5hQweVAlylfyC/IKO9mIT//7KyngbVXaxdgpAL9vR3mdeCGwzUMs6f0CuHa8pQs6lyiM1VrCWdFv/7IMT+AEaMPyvgY6Tg9A4lPe0JzM7Kv81uoCZHoUxBTUUzLjEwMFVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVQAFgABnqThIyURsaqpMQU1FMy4xMDCqqqqqqqqqqqr/+yDE+4DHrGsn6XRs6McNJTgOiLyqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//sgxPoARmBpK+BwpaDyjWU8Doy9qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqv/7EMT4gEW4aSegcEWotg0lfA4UtKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq//sgxPQCRgxrJ+BsRaiZjWT0DIi0qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqv/7EMTcg8GMLxEAGSpoAAA0gAAABKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq" type="audio/mpeg"></audio>
+</body></html>`;
   const win = window.open("", "_blank", "width=380,height=600");
   win.document.write(html);
   win.document.close();
