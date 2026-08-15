@@ -435,10 +435,21 @@
       </a>
     </div>
 
+    <div id="od-address" style="display:none;margin-bottom:14px">
+      <div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Delivery address</div>
+      <div style="background:var(--gray-50);border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--ink-2);margin-bottom:8px" id="od-address-text"></div>
+      <div id="od-address-distance-badge" style="font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:100px;display:inline-block;margin-bottom:8px"></div>
+      <iframe id="od-address-map" style="width:100%;height:180px;border:0;border-radius:10px" loading="lazy"></iframe>
+    </div>
+
     <div style="font-size:12.5px;font-weight:700;margin-bottom:6px">Items</div>
     <div id="od-items" style="margin-bottom:14px"></div>
     <div id="od-totals"></div>
 
+    <div class="modal-actions" id="od-pending-actions" style="display:none">
+      <button class="btn btn-danger btn-sm" onclick="rejectFromDetail()">Reject order</button>
+      <button class="btn btn-primary btn-sm" onclick="acceptFromDetail()">Accept order</button>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-order-detail')">Close</button>
       <button class="btn btn-primary btn-sm" onclick="printReceipt()"><span class="material-symbols-rounded" style="font-size:16px">print</span> Print receipt</button>
@@ -925,7 +936,7 @@ async function loadOrders() {
           <span class="cell-strong">${money(o.total_amount)}</span>
           <div class="row-actions">
             <button class="btn btn-ghost btn-sm" onclick="openOrderDetail(${o.id})">View</button>
-            ${o.status === "pending" ? `<button class="btn btn-primary btn-sm" onclick="advanceOrder(${o.id},'accepted')">Accept</button>
+            ${o.status === "pending" ? `<button class="btn btn-primary btn-sm" onclick="openOrderDetail(${o.id})">Review &amp; Accept</button>
               <button class="btn btn-danger btn-sm" onclick="cancelOrder(${o.id})">Reject</button>` : ""}
           </div>
         </div>
@@ -954,6 +965,33 @@ async function openOrderDetail(id) {
     } else {
       customerBlock.style.display = "none";
     }
+
+    // Delivery address — shown before the merchant can accept, so they can
+    // check the pin is a real, reachable location before committing.
+    const addressBlock = document.getElementById("od-address");
+    const snap = o.dropoff_snapshot;
+    if (snap && snap.lat && snap.lng) {
+      addressBlock.style.display = "block";
+      const addrParts = [snap.street, snap.barangay, snap.landmark ? `(near ${snap.landmark})` : null].filter(Boolean);
+      document.getElementById("od-address-text").textContent = addrParts.join(", ") || "Address on file";
+      document.getElementById("od-address-map").src = `https://www.google.com/maps?q=${snap.lat},${snap.lng}&output=embed`;
+
+      const store = STORES.find(s => s.id === o.store_id) || ACTIVE_STORE;
+      const badge = document.getElementById("od-address-distance-badge");
+      if (store && store.lat && store.lng) {
+        const distKm = haversineKm(store.lat, store.lng, snap.lat, snap.lng);
+        const inRange = distKm <= 12; // matches the platform's max delivery radius
+        badge.textContent = `${distKm.toFixed(1)} km from your store ${inRange ? "· within delivery range" : "· OUTSIDE normal delivery range"}`;
+        badge.style.background = inRange ? "var(--green-tint)" : "var(--red-tint)";
+        badge.style.color = inRange ? "var(--green-dark)" : "var(--red)";
+      } else {
+        badge.textContent = "";
+      }
+    } else {
+      addressBlock.style.display = "none";
+    }
+
+    document.getElementById("od-pending-actions").style.display = o.status === "pending" ? "flex" : "none";
 
     const items = o.items || [];
     document.getElementById("od-items").innerHTML = items.length
@@ -1025,6 +1063,34 @@ async function cancelOrder(id) {
   if (reason === null) return;
   try { await api(`/api/orders/${id}/cancel`, { method: "POST", body: JSON.stringify({ reason }) }); showToast("Order rejected"); loadOrders(); }
   catch (e) { showToast(e.message, true); }
+}
+
+// Client-side distance check — same formula used on the backend, just so
+// the merchant sees a real number before deciding whether an order is
+// worth accepting, not just a raw address string.
+function haversineKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+async function acceptFromDetail() {
+  if (!_currentOrderDetail) return;
+  await advanceOrder(_currentOrderDetail.id, "accepted");
+  closeModal("modal-order-detail");
+}
+async function rejectFromDetail() {
+  if (!_currentOrderDetail) return;
+  const reason = prompt("Reason for rejecting this order:", "Item unavailable");
+  if (reason === null) return;
+  try {
+    await api(`/api/orders/${_currentOrderDetail.id}/cancel`, { method: "POST", body: JSON.stringify({ reason }) });
+    showToast("Order rejected");
+    closeModal("modal-order-detail");
+    loadOrders();
+  } catch (e) { showToast(e.message, true); }
 }
 
 // ------------------------------------------------------------- Products --
