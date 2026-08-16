@@ -264,6 +264,7 @@
       <div class="nav-item" data-view="categories"><span class="material-symbols-rounded">category</span>Categories</div>
       <div class="nav-item" data-view="promos"><span class="material-symbols-rounded">sell</span>Promo Codes</div>
       <div class="nav-item" data-view="withdrawals"><span class="material-symbols-rounded">payments</span>Withdrawals<span class="badge" id="badge-withdrawals" style="display:none">0</span></div>
+      <div class="nav-item" data-view="earnings"><span class="material-symbols-rounded">trending_up</span>Earnings</div>
       <div class="nav-item" data-view="support"><span class="material-symbols-rounded">support_agent</span>Support Tickets</div>
     </div>
     <div class="nav-label">System</div>
@@ -424,6 +425,21 @@
         <div class="table-wrap"><table>
           <thead><tr><th>Recipient</th><th>Amount</th><th>Method</th><th>Status</th><th>Requested</th><th></th></tr></thead>
           <tbody id="withdrawals-tbody"></tbody>
+        </table></div>
+      </div>
+
+      <!-- ---------------- EARNINGS ---------------- -->
+      <div class="view" id="view-earnings">
+        <div class="grid cols-3" id="earnings-stats"></div>
+        <div class="section-title"><h2>Last 30 days</h2></div>
+        <div class="card">
+          <div class="bars" id="earnings-chart" style="height:180px"></div>
+          <div class="bar-labels" id="earnings-chart-labels" style="font-size:9px"></div>
+        </div>
+        <div class="section-title"><h2>By month</h2></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Month</th><th>Platform earnings</th></tr></thead>
+          <tbody id="earnings-monthly-tbody"></tbody>
         </table></div>
       </div>
 
@@ -852,6 +868,7 @@ const loaders = {
   categories: loadCategories,
   promos: loadPromos,
   withdrawals: loadWithdrawals,
+  earnings: loadEarnings,
   support: loadTickets,
   settings: loadSettings,
   backups: loadBackups,
@@ -867,6 +884,7 @@ const titles = {
   categories: ["Categories", "Storefront browsing categories"],
   promos: ["Promo Codes", "Platform-wide discounts"],
   withdrawals: ["Withdrawals", "Rider and merchant cash-out requests"],
+  earnings: ["Earnings", "Platform revenue — today, this month, and all-time"],
   support: ["Support Tickets", "Complaints, refunds, and lost items"],
   settings: ["Settings", "Fees, commissions, and platform defaults"],
   backups: ["Backups", "Database snapshots and disaster recovery"],
@@ -1461,6 +1479,36 @@ async function createPromo() {
     await api("/api/admin/promo-codes", { method: "POST", body: JSON.stringify({ code, discount_type, discount_value, min_order_amount }) });
     showToast("Promo code created"); closeModal("modal-promo"); loadPromos();
   } catch (e) { showToast(e.message, true); }
+}
+
+// -------------------------------------------------------------- Earnings --
+async function loadEarnings() {
+  document.getElementById("earnings-stats").innerHTML = statSkeletons(3);
+  try {
+    const e = await api("/api/admin/analytics/earnings");
+    document.getElementById("earnings-stats").innerHTML = `
+      ${statCard("today", "Today", money(e.today_earnings), "")}
+      ${statCard("calendar_month", "This month", money(e.this_month_earnings), "")}
+      ${statCard("account_balance", "All-time total", money(e.all_time_earnings), "<span style='color:var(--gray-600);font-weight:500'>Since the platform launched</span>")}
+    `;
+
+    const chartEl = document.getElementById("earnings-chart");
+    const labelsEl = document.getElementById("earnings-chart-labels");
+    const days = e.last_30_days || [];
+    const maxEarn = Math.max(...days.map(d => d.earnings), 1);
+    chartEl.innerHTML = days.map(d => {
+      const h = Math.round((d.earnings / maxEarn) * 100);
+      return `<div class="bar" style="height:${Math.max(h, d.earnings > 0 ? 4 : 2)}%" title="${d.label}: ${money(d.earnings)}"></div>`;
+    }).join("");
+    // 30 daily labels would be unreadable crammed together — show every
+    // 5th one only, same spirit as a real chart axis.
+    labelsEl.innerHTML = days.map((d, i) => `<span>${i % 5 === 0 ? d.label.split(' ')[1] : ''}</span>`).join("");
+
+    const months = e.last_12_months || [];
+    document.getElementById("earnings-monthly-tbody").innerHTML = months.slice().reverse().map(m => `
+      <tr><td class="cell-strong">${m.label}</td><td>${money(m.earnings)}</td></tr>
+    `).join("") || `<tr><td colspan="2" class="empty-state">No delivered orders yet.</td></tr>`;
+  } catch (err) { showToast(err.message, true); }
 }
 
 // ---------------------------------------------------------- Withdrawals --
