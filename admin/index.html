@@ -187,8 +187,11 @@
   /* bar chart (no lib) */
   .bars{display:flex;align-items:flex-end;gap:8px;height:140px;margin-top:10px;}
   .bar{flex:1;background:linear-gradient(180deg,var(--green) 0%,var(--green-dark) 100%);border-radius:6px 6px 2px 2px;
-    position:relative;min-height:4px;}
+    position:relative;min-height:4px;transition:height .6s var(--ease);}
   .bar-labels{display:flex;gap:8px;margin-top:6px;} .bar-labels span{flex:1;text-align:center;font-size:10px;color:var(--gray-600);}
+  .stat{transition:color .2s;}
+  .stat-pulse{animation:statPulse 1s var(--ease);}
+  @keyframes statPulse{0%{color:var(--green-dark);}100%{color:var(--ink);}}
 
   /* modal */
   .modal-backdrop{position:fixed;inset:0;background:rgba(10,15,25,.55);backdrop-filter:blur(4px);display:none;
@@ -979,17 +982,40 @@ function skeletonRows(cols, rows = 4) {
 }
 
 // ------------------------------------------------------------ Overview --
+let _overviewLoadedOnce = false;
 async function loadOverview() {
-  document.getElementById("overview-stats").innerHTML = statSkeletons(5);
+  // Only show the loading skeleton the very first time — every refresh
+  // after that updates values smoothly in place, which is what actually
+  // makes this feel "live" instead of the page visibly resetting every
+  // 20 seconds.
+  if (!_overviewLoadedOnce) {
+    document.getElementById("overview-stats").innerHTML = statSkeletons(5);
+  }
   try {
     const a = await api("/api/admin/analytics/overview");
-    document.getElementById("overview-stats").innerHTML = `
-      ${statCard("group", "Total customers", a.total_customers, "")}
-      ${statCard("two_wheeler", "Active riders", a.total_riders, "")}
-      ${statCard("shopping_cart", "Gross volume today", money(a.revenue_today), "<span style='color:var(--gray-600);font-weight:500'>Includes merchant &amp; rider pay</span>")}
-      ${statCard("account_balance_wallet", "Your earnings today", money(a.platform_earnings_today), "<span style='color:var(--gray-600);font-weight:500'>Commission + service fees only</span>")}
-      ${statCard("timer", "Avg. delivery time", (a.average_delivery_minutes ?? "—") + " min", "")}
-    `;
+    const statsData = [
+      ["group", "Total customers", a.total_customers, ""],
+      ["two_wheeler", "Active riders", a.total_riders, ""],
+      ["shopping_cart", "Gross volume today", money(a.revenue_today), "<span style='color:var(--gray-600);font-weight:500'>Includes merchant &amp; rider pay</span>"],
+      ["account_balance_wallet", "Your earnings today", money(a.platform_earnings_today), "<span style='color:var(--gray-600);font-weight:500'>Commission + service fees only</span>"],
+      ["timer", "Avg. delivery time", (a.average_delivery_minutes ?? "—") + " min", ""],
+    ];
+    if (!_overviewLoadedOnce) {
+      document.getElementById("overview-stats").innerHTML = statsData.map(s => statCard(...s)).join("");
+      _overviewLoadedOnce = true;
+    } else {
+      // In-place update — only touches the number, so nothing flashes or
+      // rebuilds; a brief highlight pulses just the values that actually
+      // changed, giving a genuine "live" feel.
+      const cards = document.querySelectorAll("#overview-stats .card");
+      statsData.forEach((s, i) => {
+        const statEl = cards[i]?.querySelector(".stat");
+        if (statEl && statEl.textContent !== String(s[2])) {
+          statEl.textContent = s[2];
+          statEl.classList.remove("stat-pulse"); void statEl.offsetWidth; statEl.classList.add("stat-pulse");
+        }
+      });
+    }
     document.getElementById("top-products").innerHTML = a.most_ordered_products_this_month.length
       ? a.most_ordered_products_this_month.map(p => `
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--gray-100);font-size:13px">
@@ -1001,11 +1027,24 @@ async function loadOverview() {
     const labelsEl = document.getElementById("orders-chart-labels");
     const days7 = a.orders_last_7_days || [];
     const maxCount = Math.max(...days7.map(d => d.count), 1);
-    chartEl.innerHTML = days7.map(d => {
-      const h = Math.round((d.count / maxCount) * 100);
-      return `<div class="bar" style="height:${Math.max(h, d.count > 0 ? 6 : 2)}%" title="${d.label}: ${d.count} order${d.count === 1 ? '' : 's'}"></div>`;
-    }).join("");
-    labelsEl.innerHTML = days7.map(d => `<span>${d.label}</span>`).join("");
+    const existingBars = chartEl.querySelectorAll(".bar");
+    if (existingBars.length === days7.length) {
+      // Bars already exist from a previous render — just animate their
+      // height via CSS transition (already defined on .bar) instead of
+      // replacing the DOM nodes, which is what makes the chart look like
+      // it's genuinely moving rather than being redrawn from scratch.
+      days7.forEach((d, i) => {
+        const h = Math.round((d.count / maxCount) * 100);
+        existingBars[i].style.height = `${Math.max(h, d.count > 0 ? 6 : 2)}%`;
+        existingBars[i].title = `${d.label}: ${d.count} order${d.count === 1 ? '' : 's'}`;
+      });
+    } else {
+      chartEl.innerHTML = days7.map(d => {
+        const h = Math.round((d.count / maxCount) * 100);
+        return `<div class="bar" style="height:${Math.max(h, d.count > 0 ? 6 : 2)}%" title="${d.label}: ${d.count} order${d.count === 1 ? '' : 's'}"></div>`;
+      }).join("");
+      labelsEl.innerHTML = days7.map(d => `<span>${d.label}</span>`).join("");
+    }
 
     document.getElementById("pending-approvals-sub").textContent =
       `${a.total_riders} rider${a.total_riders === 1 ? '' : 's'} · ${a.total_merchants} merchant${a.total_merchants === 1 ? '' : 's'} total on platform`;
