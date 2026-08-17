@@ -539,6 +539,26 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="modal-user-earnings">
+  <div class="modal" style="max-width:600px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <h3 id="earnings-modal-name" style="margin:0"></h3>
+        <p class="desc" id="earnings-modal-role" style="margin:2px 0 0"></p>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-user-earnings')" style="padding:4px 8px">
+        <span class="material-symbols-rounded">close</span>
+      </button>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;margin:18px 0">
+      <input type="date" id="earnings-modal-date" style="padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:11px;font-size:13px;font-family:inherit">
+      <button class="btn btn-primary btn-sm" style="width:auto" onclick="searchUserEarnings()">Search</button>
+    </div>
+    <div id="earnings-modal-summary" class="mini-stat" style="margin-bottom:14px"></div>
+    <div id="earnings-modal-list" style="max-height:340px;overflow:auto"></div>
+  </div>
+</div>
+
 <div class="modal-backdrop" id="modal-merchant-detail">
   <div class="modal" style="max-width:500px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -1393,6 +1413,7 @@ async function loadUsers() {
         <td>${u.is_suspended ? chip("suspended") : chip("active")}</td>
         <td class="cell-sub">${dt(u.created_at)}</td>
         <td class="row-actions">
+          ${["rider", "merchant"].includes(u.role) ? `<button class="btn btn-ghost btn-sm" onclick="openUserEarnings(${u.id},'${u.role}','${escapeHtml(u.full_name)}')"><span class="material-symbols-rounded" style="font-size:14px">payments</span> Earnings</button>` : ""}
           ${u.is_suspended
             ? `<button class="btn btn-ghost btn-sm" onclick="unsuspendUser(${u.id})">Unsuspend</button>`
             : `<button class="btn btn-danger btn-sm" onclick="suspendUser(${u.id})">Suspend</button>`}
@@ -1410,6 +1431,63 @@ async function suspendUser(id) {
 async function unsuspendUser(id) {
   try { await api(`/api/admin/users/${id}/unsuspend`, { method: "POST" }); showToast("User reinstated"); loadUsers(); }
   catch (e) { showToast(e.message, true); }
+}
+
+let _earningsModalUserId = null;
+let _earningsModalRole = null;
+function openUserEarnings(userId, role, name) {
+  _earningsModalUserId = userId;
+  _earningsModalRole = role;
+  document.getElementById("earnings-modal-name").textContent = name;
+  document.getElementById("earnings-modal-role").textContent = role === "rider" ? "Rider earnings" : "Merchant earnings";
+  document.getElementById("earnings-modal-date").value = new Date().toISOString().slice(0, 10);
+  document.getElementById("earnings-modal-summary").innerHTML = "";
+  document.getElementById("earnings-modal-list").innerHTML = "";
+  openModal("modal-user-earnings");
+  searchUserEarnings();
+}
+async function searchUserEarnings() {
+  if (!_earningsModalUserId) return;
+  const date = document.getElementById("earnings-modal-date").value;
+  const listEl = document.getElementById("earnings-modal-list");
+  const summaryEl = document.getElementById("earnings-modal-summary");
+  listEl.innerHTML = skeletonRows(3);
+  try {
+    const data = await api(`/api/admin/users/${_earningsModalUserId}/earnings?date=${date}`);
+    const count = data.role === "rider" ? data.total_deliveries : data.total_orders;
+    summaryEl.innerHTML = `
+      <div class="mini-stat-label">Total earned on ${data.date}</div>
+      <div class="mini-stat-value">${money(data.total_earnings)}</div>
+      <div class="cell-sub" style="margin-top:4px">${count} ${data.role === "rider" ? "deliver" + (count === 1 ? "y" : "ies") : "order" + (count === 1 ? "" : "s")} completed</div>
+    `;
+    if (!data.deliveries.length) {
+      listEl.innerHTML = `<div class="empty-state"><span class="material-symbols-rounded">inbox</span><div>No completed ${data.role === "rider" ? "deliveries" : "orders"} on this date.</div></div>`;
+      return;
+    }
+    if (data.role === "rider") {
+      listEl.innerHTML = `<table><thead><tr><th>Order</th><th>Time</th><th>Delivery fee</th><th>Tip</th><th>Total</th></tr></thead><tbody>
+        ${data.deliveries.map(d => `
+          <tr>
+            <td class="cell-strong">#${escapeHtml(d.order_number)}</td>
+            <td class="cell-sub">${d.delivered_at ? new Date(d.delivered_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</td>
+            <td>${money(d.delivery_fee)}</td>
+            <td>${d.tip > 0 ? money(d.tip) : "—"}</td>
+            <td class="cell-strong">${money(d.earning)}</td>
+          </tr>`).join("")}
+      </tbody></table>`;
+    } else {
+      listEl.innerHTML = `<table><thead><tr><th>Order</th><th>Time</th><th>Subtotal</th><th>Commission</th><th>Net</th></tr></thead><tbody>
+        ${data.deliveries.map(d => `
+          <tr>
+            <td class="cell-strong">#${escapeHtml(d.order_number)}</td>
+            <td class="cell-sub">${d.delivered_at ? new Date(d.delivered_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "—"}</td>
+            <td>${money(d.subtotal)}</td>
+            <td class="cell-sub">−${money(d.commission_amount)} (${d.commission_percent}%)</td>
+            <td class="cell-strong">${money(d.net_earning)}</td>
+          </tr>`).join("")}
+      </tbody></table>`;
+    }
+  } catch (e) { showToast(e.message, true); listEl.innerHTML = ""; }
 }
 
 let DELETE_TARGET_USER_ID = null;
