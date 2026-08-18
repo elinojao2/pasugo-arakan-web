@@ -163,6 +163,11 @@
   .service-card .material-symbols-rounded{font-size:26px;color:var(--green-dark);margin-bottom:6px;}
   .service-card .label{font-size:11.5px;font-weight:700;}
   .service-card .sub{font-size:9.5px;color:var(--gray-600);margin-top:2px;}
+  .service-card{position:relative;}
+  .service-card.service-coming-soon{cursor:not-allowed;opacity:.55;background:var(--gray-50);}
+  .service-card.service-coming-soon:hover{border-color:var(--gray-200);box-shadow:none;}
+  .coming-soon-badge{position:absolute;top:6px;right:6px;background:var(--amber);color:#fff;font-size:8px;
+    font-weight:700;padding:2px 6px;border-radius:20px;text-transform:uppercase;letter-spacing:.03em;}
   .pin-box{padding:12px;background:var(--green-tint-2);border-radius:10px;margin-top:8px;}
   .pin-actions{display:flex;gap:8px;margin-top:8px;}
   .pin-actions .btn{flex:1;}
@@ -276,17 +281,17 @@
     <div class="view active" id="view-home">
       <h2 class="section-title">Other services</h2>
       <div class="service-grid">
-        <div class="service-card" onclick="openBooking('pasabuy')">
+        <div class="service-card" data-service="pasabuy" onclick="openBooking('pasabuy')">
           <span class="material-symbols-rounded">shopping_bag</span>
           <div class="label">Pasabuy</div>
           <div class="sub">Buy anything</div>
         </div>
-        <div class="service-card" onclick="openBooking('courier')">
+        <div class="service-card" data-service="courier" onclick="openBooking('courier')">
           <span class="material-symbols-rounded">local_shipping</span>
           <div class="label">Courier</div>
           <div class="sub">Send a package</div>
         </div>
-        <div class="service-card" onclick="openBooking('pa_angkas')">
+        <div class="service-card" data-service="pa_angkas" onclick="openBooking('pa_angkas')">
           <span class="material-symbols-rounded">two_wheeler</span>
           <div class="label">Pa Angkas</div>
           <div class="sub">Book a ride</div>
@@ -730,7 +735,9 @@ async function tryRestoreSession() {
 // Checked before anything else loads — if maintenance is on, nothing
 // else in the app matters until it's off again. Also rechecked every
 // 30s so a user with the page already open gets caught too, not just
-// people loading it fresh.
+// people loading it fresh. Also applies service availability
+// ("Available Soon" for Pasabuy/Courier/Pa Angkas) from the same call,
+// since it's the same endpoint either way.
 async function checkMaintenanceMode() {
   try {
     const res = await fetch(`${API_BASE}/api/auth/system-status`);
@@ -742,10 +749,30 @@ async function checkMaintenanceMode() {
     } else {
       screen.style.display = "none";
     }
+    if (data.services_available) applyServiceAvailability(data.services_available);
     return !!data.maintenance_mode;
   } catch (e) {
     return false; // if the status check itself fails, don't block the whole app on that
   }
+}
+
+function applyServiceAvailability(services) {
+  const bookingTypes = { pasabuy: "pasabuy", courier: "courier", pa_angkas: "pa_angkas" };
+  Object.entries(bookingTypes).forEach(([service, bookingType]) => {
+    const card = document.querySelector(`.service-card[data-service="${service}"]`);
+    if (!card) return;
+    const isAvailable = services[service] !== false;
+    if (isAvailable) {
+      card.classList.remove("service-coming-soon");
+      card.setAttribute("onclick", `openBooking('${bookingType}')`);
+      const badge = card.querySelector(".coming-soon-badge");
+      if (badge) badge.remove();
+    } else if (!card.classList.contains("service-coming-soon")) {
+      card.classList.add("service-coming-soon");
+      card.removeAttribute("onclick");
+      card.insertAdjacentHTML("beforeend", `<div class="coming-soon-badge">Available Soon</div>`);
+    }
+  });
 }
 setInterval(checkMaintenanceMode, 30000);
 

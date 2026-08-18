@@ -167,6 +167,7 @@
   .toggle-slider:before{position:absolute;content:"";height:20px;width:20px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.2s var(--ease);box-shadow:0 1px 3px rgba(0,0,0,.2);}
   .toggle-switch input:checked + .toggle-slider{background:#DC2626;}
   .toggle-switch input:checked + .toggle-slider:before{transform:translateX(20px);}
+  .toggle-switch.service-toggle input:checked + .toggle-slider{background:var(--green);}
   .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
   .detail-label{font-size:11px;color:var(--gray-600);text-transform:uppercase;letter-spacing:.04em;margin-bottom:3px;}
   .detail-value{font-size:13.5px;font-weight:600;color:var(--ink);}
@@ -492,6 +493,38 @@
             <textarea id="maintenance-message" rows="3" style="width:280px;padding:8px;border:1px solid var(--gray-200);border-radius:8px;font-family:inherit;font-size:13px">Pasugo Arakan is currently undergoing maintenance. We'll be back shortly — salamat sa pasensya!</textarea>
           </div>
           <div style="margin-top:12px;text-align:right"><button class="btn btn-primary btn-sm" onclick="saveMaintenanceMessage()">Save message</button></div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <h3 style="margin-bottom:6px;display:flex;align-items:center;gap:8px">
+            <span class="material-symbols-rounded" style="color:var(--green-dark)">rocket_launch</span> Service availability
+          </h3>
+          <p style="font-size:12.5px;color:var(--gray-600);margin-bottom:14px">
+            Turn a service off to show "Available Soon" instead of letting customers book it — useful
+            while you're still onboarding riders or working out the details for a new service type.
+            Store Delivery is always on since it's the core service.
+          </p>
+          <div class="settings-row">
+            <div><div class="lbl">Pasabuy</div><div class="desc">Buy-anything personal shopping requests</div></div>
+            <label class="toggle-switch service-toggle">
+              <input type="checkbox" id="service-toggle-pasabuy" onchange="toggleServiceAvailability('pasabuy')" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="settings-row">
+            <div><div class="lbl">Courier</div><div class="desc">Package and document delivery</div></div>
+            <label class="toggle-switch service-toggle">
+              <input type="checkbox" id="service-toggle-courier" onchange="toggleServiceAvailability('courier')" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="settings-row">
+            <div><div class="lbl">Pa Angkas</div><div class="desc">Habal-habal style passenger rides</div></div>
+            <label class="toggle-switch service-toggle">
+              <input type="checkbox" id="service-toggle-pa_angkas" onchange="toggleServiceAvailability('pa_angkas')" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
         </div>
       </div>
 
@@ -1717,6 +1750,16 @@ async function loadSettings() {
     document.getElementById("maintenance-status-desc").textContent =
       maintenanceOn ? "Currently ON — all apps are showing the maintenance screen" : "Currently off — all apps working normally";
     if (s["maintenance_message"]) document.getElementById("maintenance-message").value = s["maintenance_message"];
+
+    // Service availability — unlike maintenance mode, these default to ON
+    // (true) when the setting has never been explicitly saved, since a
+    // brand-new service should be available unless an admin deliberately
+    // turns it off.
+    ["pasabuy", "courier", "pa_angkas"].forEach(service => {
+      const key = `service_available_${service}`;
+      const isOn = s[key] === undefined || s[key] === true || s[key] === "true";
+      document.getElementById(`service-toggle-${service}`).checked = isOn;
+    });
   } catch (e) { showToast(e.message, true); }
 }
 
@@ -1730,6 +1773,19 @@ async function toggleMaintenanceMode() {
     showToast(turningOn ? "Maintenance mode is now ON" : "Maintenance mode is now off");
   } catch (e) {
     checkbox.checked = !turningOn; // revert the toggle visually if the save failed
+    showToast(e.message, true);
+  }
+}
+
+async function toggleServiceAvailability(service) {
+  const checkbox = document.getElementById(`service-toggle-${service}`);
+  const turningOn = checkbox.checked;
+  const labels = { pasabuy: "Pasabuy", courier: "Courier", pa_angkas: "Pa Angkas" };
+  try {
+    await api(`/api/admin/settings/service_available_${service}`, { method: "PUT", body: JSON.stringify({ value: turningOn }) });
+    showToast(turningOn ? `${labels[service]} is now available` : `${labels[service]} now shows "Available Soon"`);
+  } catch (e) {
+    checkbox.checked = !turningOn;
     showToast(e.message, true);
   }
 }
