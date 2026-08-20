@@ -576,6 +576,114 @@ select.filter:focus{
   to{opacity:1;transform:translateY(0);}
 }
 
+
+/* -------- Modern Orders Trend Graph -------- */
+.orders-trend-card{
+  min-height:290px;
+  overflow:hidden;
+}
+.orders-trend-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+.orders-trend-head h3{
+  margin:0;
+  color:var(--ink);
+  font-size:13px;
+  font-weight:750;
+  letter-spacing:-.01em;
+}
+.orders-trend-summary{
+  margin-top:4px;
+  color:var(--gray-600);
+  font-size:11px;
+}
+.orders-trend-badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:5px 9px;
+  border-radius:999px;
+  background:var(--green-tint-2);
+  color:var(--green-dark);
+  border:1px solid #D1FAE5;
+  font-size:10px;
+  font-weight:700;
+}
+.trend-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:var(--green-light);
+  box-shadow:0 0 0 4px rgba(34,197,94,.10);
+  animation:trendPulse 1.8s ease-in-out infinite;
+}
+@keyframes trendPulse{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:.55;transform:scale(.78)}
+}
+.orders-trend-chart{
+  position:relative;
+  height:190px;
+  width:100%;
+}
+.orders-trend-svg{
+  width:100%;
+  height:100%;
+  display:block;
+  overflow:visible;
+}
+.orders-trend-grid{
+  stroke:#E9EEF3;
+  stroke-width:1;
+}
+.orders-trend-area{
+  fill:url(#ordersTrendFill);
+  opacity:.72;
+}
+.orders-trend-line{
+  fill:none;
+  stroke:var(--green);
+  stroke-width:3;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+  filter:drop-shadow(0 5px 7px rgba(22,163,74,.16));
+}
+.orders-trend-point{
+  fill:#fff;
+  stroke:var(--green);
+  stroke-width:2.5;
+  transition:r .18s ease,stroke-width .18s ease;
+}
+.orders-trend-point:hover{
+  r:6;
+  stroke-width:3;
+}
+.orders-trend-value{
+  font-size:10px;
+  font-weight:750;
+  fill:#334155;
+}
+.orders-trend-labels{
+  display:grid;
+  grid-template-columns:repeat(7,minmax(0,1fr));
+  margin-top:2px;
+  padding:0 8px;
+  color:#94A3B8;
+  font-size:9.5px;
+  text-align:center;
+}
+.orders-trend-labels span{
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+@media(max-width:640px){
+  .orders-trend-chart{height:175px;}
+  .orders-trend-labels{padding:0 3px;font-size:9px;}
+}
+
 </style>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCHRnRqAWrk4giJEaXw7zd8jyYwgFFLIKA"></script>
 </head>
@@ -673,10 +781,16 @@ select.filter:focus{
       <div class="view active" id="view-overview">
         <div class="grid cols-5" id="overview-stats"></div>
         <div class="grid cols-2" style="margin-top:16px">
-          <div class="card">
-            <h3>Orders — last 7 days</h3>
-            <div class="bars" id="orders-chart"></div>
-            <div class="bar-labels" id="orders-chart-labels"></div>
+          <div class="card orders-trend-card">
+            <div class="orders-trend-head">
+              <div>
+                <h3>Orders — last 7 days</h3>
+                <div class="orders-trend-summary" id="orders-trend-summary">Order activity</div>
+              </div>
+              <span class="orders-trend-badge"><span class="trend-dot"></span> Live</span>
+            </div>
+            <div class="orders-trend-chart" id="orders-chart" aria-label="Orders trend for the last 7 days"></div>
+            <div class="orders-trend-labels" id="orders-chart-labels"></div>
           </div>
           <div class="card">
             <h3>Most ordered this month</h3>
@@ -919,20 +1033,6 @@ select.filter:focus{
             </label>
           </div>
         </div>
-
-        <div class="card" style="margin-top:16px;border:2px solid var(--red)">
-          <h3 style="margin-bottom:6px;display:flex;align-items:center;gap:8px;color:var(--red)">
-            <span class="material-symbols-rounded">warning</span> Danger zone
-          </h3>
-          <p style="font-size:12.5px;color:var(--gray-600);margin-bottom:14px">
-            Permanently deletes every customer, rider, merchant, store, product, order, wallet, and
-            transaction on the platform. Your admin accounts and platform settings are kept — everything
-            else is wiped. A fresh backup is taken automatically first and the reset is cancelled entirely
-            if that backup fails. The database structure itself is never touched, only the records in it.
-            This cannot be undone except by restoring that backup.
-          </p>
-          <button class="btn btn-danger btn-sm" style="width:auto" onclick="openResetSystemModal()">Reset system</button>
-        </div>
       </div>
 
       <!-- ---------------- BACKUPS ---------------- -->
@@ -1046,31 +1146,6 @@ select.filter:focus{
     <div class="modal-actions">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-restore-backup')">Cancel</button>
       <button class="btn btn-danger btn-sm" onclick="confirmRestoreBackup()">Restore and overwrite live data</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-backdrop" id="modal-reset-system">
-  <div class="modal">
-    <h3 style="color:#DC2626">Reset the entire system?</h3>
-    <p style="font-size:12.5px;color:var(--gray-600);margin:8px 0 16px">
-      This <strong>permanently deletes every customer, rider, merchant, store, product, order, wallet,
-      and transaction</strong> on the platform. Your admin accounts and platform settings are kept —
-      everything else is gone. A fresh backup is taken automatically first; the reset is cancelled
-      entirely if that backup fails. This cannot be undone except by restoring that backup.
-    </p>
-    <div class="field">
-      <label>Type <strong>DELETE EVERYTHING</strong> to confirm</label>
-      <input type="text" id="reset-confirm-text" placeholder="DELETE EVERYTHING">
-    </div>
-    <div class="field">
-      <label>Enter your admin password to confirm</label>
-      <input type="password" id="reset-password" placeholder="Your password">
-    </div>
-    <div id="reset-error" style="color:#DC2626;font-size:12px;margin-top:6px;min-height:16px"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-reset-system')">Cancel</button>
-      <button class="btn btn-danger btn-sm" id="reset-confirm-btn" onclick="confirmResetSystem()">Back up and reset everything</button>
     </div>
   </div>
 </div>
@@ -1546,25 +1621,68 @@ async function loadOverview() {
 
     const chartEl = document.getElementById("orders-chart");
     const labelsEl = document.getElementById("orders-chart-labels");
+    const summaryEl = document.getElementById("orders-trend-summary");
     const days7 = a.orders_last_7_days || [];
-    const maxCount = Math.max(...days7.map(d => d.count), 1);
-    const existingBars = chartEl.querySelectorAll(".bar");
-    if (existingBars.length === days7.length) {
-      // Bars already exist from a previous render — just animate their
-      // height via CSS transition (already defined on .bar) instead of
-      // replacing the DOM nodes, which is what makes the chart look like
-      // it's genuinely moving rather than being redrawn from scratch.
-      days7.forEach((d, i) => {
-        const h = Math.round((d.count / maxCount) * 100);
-        existingBars[i].style.height = `${Math.max(h, d.count > 0 ? 6 : 2)}%`;
-        existingBars[i].title = `${d.label}: ${d.count} order${d.count === 1 ? '' : 's'}`;
-      });
+
+    // Modern 7-day trend graph: smooth line + soft area fill + daily values.
+    // Uses the real analytics response; no sample data is introduced.
+    if (!days7.length) {
+      chartEl.innerHTML = `<div class="empty-state" style="height:100%;display:flex;align-items:center;justify-content:center">
+        <span class="material-symbols-rounded">show_chart</span>
+        <div>No order data yet.</div>
+      </div>`;
+      labelsEl.innerHTML = "";
+      summaryEl.textContent = "No orders recorded in the last 7 days";
     } else {
-      chartEl.innerHTML = days7.map(d => {
-        const h = Math.round((d.count / maxCount) * 100);
-        return `<div class="bar" style="height:${Math.max(h, d.count > 0 ? 6 : 2)}%" title="${d.label}: ${d.count} order${d.count === 1 ? '' : 's'}"></div>`;
+      const width = 760;
+      const height = 190;
+      const pad = { top: 18, right: 16, bottom: 20, left: 12 };
+      const plotW = width - pad.left - pad.right;
+      const plotH = height - pad.top - pad.bottom;
+      const counts = days7.map(d => Number(d.count) || 0);
+      const maxCount = Math.max(...counts, 1);
+      const yMax = Math.max(Math.ceil(maxCount * 1.2), 1);
+      const x = i => pad.left + (days7.length === 1 ? plotW / 2 : i * plotW / (days7.length - 1));
+      const y = value => pad.top + plotH - (value / yMax) * plotH;
+
+      const points = days7.map((d, i) => [x(i), y(Number(d.count) || 0)]);
+      const linePath = points.map((p, i) => `${i ? "L" : "M"} ${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" ");
+      const areaPath = `${linePath} L ${points[points.length - 1][0].toFixed(2)} ${(pad.top + plotH).toFixed(2)} L ${points[0][0].toFixed(2)} ${(pad.top + plotH).toFixed(2)} Z`;
+
+      const gridLines = [0, .25, .5, .75, 1].map(t => {
+        const gy = pad.top + plotH - t * plotH;
+        return `<line class="orders-trend-grid" x1="${pad.left}" y1="${gy}" x2="${width - pad.right}" y2="${gy}"/>`;
       }).join("");
-      labelsEl.innerHTML = days7.map(d => `<span>${d.label}</span>`).join("");
+
+      const pointsSvg = points.map(([px, py], i) => {
+        const count = counts[i];
+        return `<g>
+          <title>${escapeHtml(days7[i].label)}: ${count} order${count === 1 ? "" : "s"}</title>
+          <circle class="orders-trend-point" cx="${px}" cy="${py}" r="4"/>
+          <text class="orders-trend-value" x="${px}" y="${Math.max(py - 10, 11)}" text-anchor="middle">${count}</text>
+        </g>`;
+      }).join("");
+
+      chartEl.innerHTML = `
+        <svg class="orders-trend-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" role="img" aria-label="Orders over the last 7 days">
+          <defs>
+            <linearGradient id="ordersTrendFill" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#22C55E" stop-opacity=".24"/>
+              <stop offset="100%" stop-color="#22C55E" stop-opacity=".015"/>
+            </linearGradient>
+          </defs>
+          ${gridLines}
+          <path class="orders-trend-area" d="${areaPath}"/>
+          <path class="orders-trend-line" d="${linePath}"/>
+          ${pointsSvg}
+        </svg>`;
+
+      labelsEl.innerHTML = days7.map(d => `<span>${escapeHtml(d.label)}</span>`).join("");
+
+      const total = counts.reduce((sum, n) => sum + n, 0);
+      const peak = Math.max(...counts);
+      const peakDay = days7[counts.indexOf(peak)]?.label || "";
+      summaryEl.textContent = `${total} total order${total === 1 ? "" : "s"} · peak ${peak} on ${peakDay}`;
     }
 
     document.getElementById("pending-approvals-sub").textContent =
@@ -2496,41 +2614,6 @@ async function confirmRestoreBackup() {
     showToast("Database restored successfully.");
     loadBackups();
   } catch (e) { errEl.textContent = e.message; }
-}
-
-function openResetSystemModal() {
-  document.getElementById("reset-confirm-text").value = "";
-  document.getElementById("reset-password").value = "";
-  document.getElementById("reset-error").textContent = "";
-  openModal("modal-reset-system");
-}
-
-async function confirmResetSystem() {
-  const confirmation = document.getElementById("reset-confirm-text").value.trim();
-  const password = document.getElementById("reset-password").value;
-  const errEl = document.getElementById("reset-error");
-  const btn = document.getElementById("reset-confirm-btn");
-  if (confirmation !== "DELETE EVERYTHING") { errEl.textContent = 'You must type DELETE EVERYTHING exactly to confirm.'; return; }
-  if (!password) { errEl.textContent = "Enter your admin password to confirm."; return; }
-
-  // This genuinely takes real time (a full database backup runs first) —
-  // show that clearly rather than leaving the button looking frozen.
-  btn.disabled = true;
-  btn.textContent = "Backing up, then resetting...";
-  errEl.textContent = "";
-  try {
-    const result = await api("/api/admin/system/reset", {
-      method: "POST", body: JSON.stringify({ password, confirmation_phrase: confirmation }),
-    });
-    closeModal("modal-reset-system");
-    showToast(`System reset complete. Backup saved as ${result.backup_filename}.`);
-    navigate("overview");
-  } catch (e) {
-    errEl.textContent = e.message;
-  } finally {
-    btn.disabled = false;
-    btn.textContent = "Back up and reset everything";
-  }
 }
 
 // ------------------------------------------------------------- Audit log --
