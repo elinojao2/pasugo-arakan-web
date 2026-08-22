@@ -230,6 +230,7 @@
         <p class="hint">Order from local stores in Arakan in minutes.</p>
         <div class="field"><label>Email or mobile number</label><input id="login-identifier" placeholder="you@example.com"></div>
         <div class="field"><label>Password</label><input id="login-password" type="password"></div>
+        <div style="text-align:right;margin:-8px 0 14px"><a onclick="showForgotStep()" style="font-size:12px;color:var(--green-dark);font-weight:600;cursor:pointer">Forgot password?</a></div>
         <button class="btn btn-primary" onclick="doLogin()">Sign in</button>
       </div>
 
@@ -251,10 +252,31 @@
       <p class="hint" id="otp-hint">We sent a 6-digit code to your mobile number.</p>
       <div class="field"><label>Verification code</label><input id="otp-code" maxlength="6" placeholder="000000" style="letter-spacing:4px;font-size:18px;text-align:center"></div>
       <button class="btn btn-primary" onclick="doVerifyOtp()">Verify</button>
-      <div style="text-align:center;margin-top:12px">
+      <div style="text-align:center;margin-top:12px" id="otp-resend-row">
         <a onclick="doResendOtp()" style="font-size:12px;color:var(--green-dark);font-weight:600;cursor:pointer">Resend code</a>
       </div>
       <div id="otp-error" style="color:var(--red);font-size:12px;margin-top:8px;min-height:16px"></div>
+    </div>
+
+    <div id="auth-step-forgot" style="display:none">
+      <h1>Reset password</h1>
+      <p class="hint">Enter your email or mobile number to receive a reset code.</p>
+      <div class="field"><label>Email or mobile number</label><input id="forgot-identifier" placeholder="you@example.com"></div>
+      <button class="btn btn-primary" id="forgot-send-btn" onclick="doForgotPasswordSend()">Send reset code</button>
+      <div id="forgot-cooldown-note" style="display:none;text-align:center;font-size:11.5px;color:var(--gray-600);margin-top:8px">
+        For your security, we limit how often a reset code can be sent.
+      </div>
+      <div id="forgot-error" style="color:var(--red);font-size:12px;margin-top:8px;min-height:16px"></div>
+
+      <div id="forgot-reset-fields" style="display:none;margin-top:20px;padding-top:20px;border-top:1px solid var(--gray-200)">
+        <div class="field"><label>Reset code</label><input id="forgot-token" maxlength="6" placeholder="000000" style="letter-spacing:3px;text-align:center"></div>
+        <div class="field"><label>New password (min. 6 characters)</label><input id="forgot-new-password" type="password"></div>
+        <button class="btn btn-primary" onclick="doResetPasswordSubmit()">Reset password</button>
+      </div>
+
+      <div style="text-align:center;margin-top:16px">
+        <a onclick="backToLoginFromForgot()" style="font-size:12px;color:var(--gray-600);font-weight:600;cursor:pointer">← Back to sign in</a>
+      </div>
     </div>
   </div>
 </div>
@@ -594,6 +616,15 @@ let ADDR_MARKER = null;
 let PENDING_MOBILE = null;
 let AUTH_MODE = "login"; // login | register
 
+// Countdown state for OTP resend / forgot-password resend rate limiting —
+// the backend allows 2 free sends, then a 30-minute wait between every
+// send after that. Shared timer variables since only one of these steps
+// is ever visible at once.
+let OTP_COOLDOWN_TIMER = null;
+let OTP_COOLDOWN_SECONDS = 0;
+let FORGOT_COOLDOWN_TIMER = null;
+let FORGOT_COOLDOWN_SECONDS = 0;
+
 const CATEGORY_ICONS = {
   food: "restaurant", grocery: "local_grocery_store", pharmacy: "medication",
   hardware: "hardware", pasabuy: "shopping_bag", default: "storefront",
@@ -606,7 +637,13 @@ async function api(path, options = {}) {
     headers: { "Content-Type": "application/json", ...(TOKEN ? { Authorization: "Bearer " + TOKEN } : {}), ...(options.headers || {}) },
   });
   let data = null; try { data = await res.json(); } catch (e) {}
-  if (!res.ok) { const err = new Error((data && data.message) || `Request failed (${res.status})`); err.errorCode = data && data.error_code; throw err; }
+  if (!res.ok) {
+    const err = new Error((data && data.message) || `Request failed (${res.status})`);
+    err.errorCode = data && data.error_code;
+    err.status = res.status;
+    err.data = data;
+    throw err;
+  }
   return data;
 }
 function escapeHtml(str) { return String(str ?? "").replace(/[&<>"']/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[m])); }
@@ -619,6 +656,15 @@ function showToast(msg, isErr = false) {
   el.innerHTML = `<span class="material-symbols-rounded" style="font-size:16px">${isErr ? "error" : "check_circle"}</span>${escapeHtml(msg)}`;
   document.getElementById("toast-stack").appendChild(el);
   setTimeout(() => el.remove(), 3500);
+}
+
+// Shared countdown formatter/runner for both OTP resend and
+// forgot-password resend — ticks every second, disables the relevant
+// button, and shows "mm:ss" until it reaches zero.
+function formatCooldown(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
 // -------------------------------------------------------------- Auth flow --
@@ -672,6 +718,7 @@ async function doRegister() {
 
 function showOtpStep(alreadySent) {
   document.getElementById("auth-step-credentials").style.display = "none";
+  document.getElementById("auth-step-forgot").style.display = "none";
   document.getElementById("auth-step-otp").style.display = "block";
   document.getElementById("otp-hint").textContent = `We sent a 6-digit code to ${PENDING_MOBILE}.`;
   if (!alreadySent) { /* registration already triggers a send server-side */ }
@@ -688,11 +735,117 @@ async function doVerifyOtp() {
     enterApp();
   } catch (e) { errEl.textContent = e.message; }
 }
+
 async function doResendOtp() {
+  if (OTP_COOLDOWN_SECONDS > 0) return;
   try {
     await api("/api/auth/otp/request", { method: "POST", body: JSON.stringify({ mobile_number: PENDING_MOBILE }) });
     showToast("Code resent");
-  } catch (e) { showToast(e.message, true); }
+  } catch (e) {
+    if (e.status === 429 && e.data && typeof e.data.wait_seconds === "number") {
+      startOtpCooldown(e.data.wait_seconds);
+    }
+    showToast(e.message, true);
+  }
+}
+
+function startOtpCooldown(seconds) {
+  clearInterval(OTP_COOLDOWN_TIMER);
+  OTP_COOLDOWN_SECONDS = seconds;
+  renderOtpCooldown();
+  OTP_COOLDOWN_TIMER = setInterval(() => {
+    OTP_COOLDOWN_SECONDS--;
+    if (OTP_COOLDOWN_SECONDS <= 0) { clearInterval(OTP_COOLDOWN_TIMER); OTP_COOLDOWN_SECONDS = 0; }
+    renderOtpCooldown();
+  }, 1000);
+}
+function renderOtpCooldown() {
+  const row = document.getElementById("otp-resend-row");
+  if (OTP_COOLDOWN_SECONDS > 0) {
+    row.innerHTML = `<span style="font-size:12px;color:var(--gray-600);font-weight:600">Resend available in ${formatCooldown(OTP_COOLDOWN_SECONDS)}</span>`;
+  } else {
+    row.innerHTML = `<a onclick="doResendOtp()" style="font-size:12px;color:var(--green-dark);font-weight:600;cursor:pointer">Resend code</a>`;
+  }
+}
+
+// -------------------------------------------------------- Forgot password --
+function showForgotStep() {
+  document.getElementById("auth-step-credentials").style.display = "none";
+  document.getElementById("auth-step-otp").style.display = "none";
+  document.getElementById("auth-step-forgot").style.display = "block";
+  document.getElementById("forgot-identifier").value = document.getElementById("login-identifier").value.trim();
+  document.getElementById("forgot-reset-fields").style.display = "none";
+  document.getElementById("forgot-error").textContent = "";
+}
+function backToLoginFromForgot() {
+  clearInterval(FORGOT_COOLDOWN_TIMER);
+  FORGOT_COOLDOWN_SECONDS = 0;
+  document.getElementById("auth-step-forgot").style.display = "none";
+  document.getElementById("auth-step-credentials").style.display = "block";
+}
+
+async function doForgotPasswordSend() {
+  if (FORGOT_COOLDOWN_SECONDS > 0) return;
+  const identifier = document.getElementById("forgot-identifier").value.trim();
+  const errEl = document.getElementById("forgot-error"); errEl.textContent = "";
+  if (!identifier) { errEl.textContent = "Enter your email or mobile number."; return; }
+  try {
+    await api("/api/auth/forgot-password", { method: "POST", body: JSON.stringify({
+      email: identifier.includes("@") ? identifier : undefined,
+      mobile_number: identifier.includes("@") ? undefined : identifier,
+    })});
+    document.getElementById("forgot-reset-fields").style.display = "block";
+    showToast("If that account exists, a reset code was sent.");
+  } catch (e) {
+    if (e.status === 429 && e.data && typeof e.data.wait_seconds === "number") {
+      startForgotCooldown(e.data.wait_seconds);
+    }
+    errEl.textContent = e.message;
+  }
+}
+
+function startForgotCooldown(seconds) {
+  clearInterval(FORGOT_COOLDOWN_TIMER);
+  FORGOT_COOLDOWN_SECONDS = seconds;
+  renderForgotCooldown();
+  FORGOT_COOLDOWN_TIMER = setInterval(() => {
+    FORGOT_COOLDOWN_SECONDS--;
+    if (FORGOT_COOLDOWN_SECONDS <= 0) { clearInterval(FORGOT_COOLDOWN_TIMER); FORGOT_COOLDOWN_SECONDS = 0; }
+    renderForgotCooldown();
+  }, 1000);
+}
+function renderForgotCooldown() {
+  const btn = document.getElementById("forgot-send-btn");
+  const note = document.getElementById("forgot-cooldown-note");
+  if (FORGOT_COOLDOWN_SECONDS > 0) {
+    btn.disabled = true;
+    btn.textContent = `Resend available in ${formatCooldown(FORGOT_COOLDOWN_SECONDS)}`;
+    note.style.display = "block";
+  } else {
+    btn.disabled = false;
+    btn.textContent = "Send reset code";
+    note.style.display = "none";
+  }
+}
+
+async function doResetPasswordSubmit() {
+  const identifier = document.getElementById("forgot-identifier").value.trim();
+  const token = document.getElementById("forgot-token").value.trim();
+  const newPassword = document.getElementById("forgot-new-password").value;
+  const errEl = document.getElementById("forgot-error"); errEl.textContent = "";
+  if (!token) { errEl.textContent = "Enter the reset code."; return; }
+  if (newPassword.length < 6) { errEl.textContent = "New password must be at least 6 characters."; return; }
+  try {
+    await api("/api/auth/reset-password", { method: "POST", body: JSON.stringify({
+      email: identifier.includes("@") ? identifier : undefined,
+      mobile_number: identifier.includes("@") ? undefined : identifier,
+      reset_token: token,
+      new_password: newPassword,
+    })});
+    showToast("Password reset. Please sign in.");
+    backToLoginFromForgot();
+    document.getElementById("login-identifier").value = identifier;
+  } catch (e) { errEl.textContent = e.message; }
 }
 
 async function enterApp() {
@@ -709,6 +862,7 @@ function logout() {
   document.getElementById("auth-screen").style.display = "flex";
   document.getElementById("auth-step-credentials").style.display = "block";
   document.getElementById("auth-step-otp").style.display = "none";
+  document.getElementById("auth-step-forgot").style.display = "none";
 }
 
 // Runs once on page load — restores a previous session instead of forcing
