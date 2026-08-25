@@ -1238,6 +1238,15 @@ select.filter:focus{
   </div>
 </div>
 
+<div class="modal-backdrop" id="modal-rider-documents">
+  <div class="modal" style="max-width:640px">
+    <h3 id="rd-modal-title" style="margin:0 0 4px">Verification Documents</h3>
+    <p class="desc" id="rd-modal-sub" style="margin:0 0 18px"></p>
+    <div id="rd-modal-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px;max-height:60vh;overflow:auto"></div>
+    <div class="modal-actions"><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-rider-documents')">Close</button></div>
+  </div>
+</div>
+
 <div class="toast-stack" id="toast-stack"></div>
 
 <script>
@@ -1993,12 +2002,25 @@ async function loadPendingRiders() {
         <div style="margin:12px 0;font-size:12.5px;color:var(--gray-600)">
           Documents uploaded: ${r.documents.length ? r.documents.map(d => d.document_type.replace(/_/g," ")).join(", ") : "none yet"}
         </div>
-        <div class="row-actions">
+                <div class="row-actions">
+          <button class="btn btn-ghost btn-sm" onclick='openRiderDocumentsModal(${JSON.stringify(r).replace(/'/g, "&#39;")})' ${!r.documents.length ? "disabled" : ""}><span class="material-symbols-rounded" style="font-size:15px">visibility</span> View Documents</button>
           <button class="btn btn-primary btn-sm" onclick="approveRider(${r.id})"><span class="material-symbols-rounded" style="font-size:15px">check</span> Approve</button>
           <button class="btn btn-danger btn-sm" onclick="openRejectModal('rider', ${r.id})"><span class="material-symbols-rounded" style="font-size:15px">close</span> Reject</button>
         </div>
       </div>`).join("") : emptyCard("verified", "No pending rider applications.");
   } catch (e) { showToast(e.message, true); }
+}
+function openRiderDocumentsModal(rider) {
+  document.getElementById("rd-modal-title").textContent = rider.full_name;
+  document.getElementById("rd-modal-sub").textContent = `${rider.mobile_number || ""} — verify each document clearly shows the rider's real name and photo before approving.`;
+  const labels = { valid_id: "Valid ID", drivers_license: "Driver's License", or_cr: "OR/CR", selfie: "Selfie" };
+  const grid = document.getElementById("rd-modal-grid");
+  grid.innerHTML = rider.documents.length ? rider.documents.map(d => `
+    <div>
+      <div style="font-size:11.5px;font-weight:700;margin-bottom:6px;text-transform:capitalize">${labels[d.document_type] || d.document_type.replace(/_/g," ")}</div>
+      <a href="${d.file_url}" target="_blank"><img src="${d.file_url}" style="width:100%;border-radius:10px;border:1px solid var(--gray-200);object-fit:cover;max-height:220px" onerror="this.src='';this.alt='Failed to load'"></a>
+    </div>`).join("") : `<div class="empty-state"><span class="material-symbols-rounded">image_not_supported</span><div>No documents uploaded yet.</div></div>`;
+  openModal("modal-rider-documents");
 }
 async function approveRider(id) {
   try { await api(`/api/admin/riders/${id}/approve`, { method: "POST" }); showToast("Rider approved"); loadPendingRiders(); loadBadges(); }
