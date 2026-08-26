@@ -2389,10 +2389,15 @@ function renderServiceRequestCard(o) {
       </div>`;
   }
 
-  const mapBlock = (pickupLat && pickupLng)
-    ? `<iframe style="width:100%;height:160px;border:0;border-radius:10px;margin:8px 0" loading="lazy"
-        src="https://www.google.com/maps?q=${pickupLat},${pickupLng}&output=embed"></iframe>`
+const pickupMap = (pickupLat && pickupLng)
+    ? `<div style="flex:1"><div style="font-size:10.5px;font-weight:700;color:var(--gray-600);margin-bottom:4px">PICKUP</div><iframe style="width:100%;height:150px;border:0;border-radius:10px" loading="lazy" src="https://www.google.com/maps?q=${pickupLat},${pickupLng}&output=embed"></iframe></div>`
     : "";
+const dropoffLat = dropoff && dropoff.lat;
+const dropoffLng = dropoff && dropoff.lng;
+const dropoffMap = (dropoffLat && dropoffLng)
+    ? `<div style="flex:1"><div style="font-size:10.5px;font-weight:700;color:var(--gray-600);margin-bottom:4px">DROP-OFF</div><iframe style="width:100%;height:150px;border:0;border-radius:10px" loading="lazy" src="https://www.google.com/maps?q=${dropoffLat},${dropoffLng}&output=embed"></iframe></div>`
+    : "";
+const mapBlock = (pickupMap || dropoffMap) ? `<div style="display:flex;gap:10px;margin:8px 0">${pickupMap}${dropoffMap}</div>` : "";
 
   return `
     <div class="card" style="margin-bottom:14px">
