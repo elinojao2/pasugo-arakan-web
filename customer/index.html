@@ -73,6 +73,22 @@
 
   h2.section-title{font-size:16px;font-weight:700;margin:0 0 14px;}
   .cat-scroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin-bottom:26px;}
+
+  /* ---------- Promo carousel ---------- */
+  .promo-scroll{display:flex;gap:14px;overflow-x:auto;padding:4px 4px 14px;margin-bottom:8px;scroll-snap-type:x mandatory;}
+  .promo-scroll::-webkit-scrollbar{height:6px;} .promo-scroll::-webkit-scrollbar-thumb{background:var(--gray-200);border-radius:10px;}
+  .promo-card{flex-shrink:0;width:260px;scroll-snap-align:start;border-radius:16px;padding:16px 18px;color:#fff;position:relative;
+    overflow:hidden;cursor:pointer;transition:transform .15s;box-shadow:0 8px 20px -8px rgba(0,0,0,.25);}
+  .promo-card:hover{transform:translateY(-2px);}
+  .promo-card.type-percent{background:linear-gradient(135deg,#16A34A,#15803D);}
+  .promo-card.type-fixed{background:linear-gradient(135deg,#EA580C,#C2410C);}
+  .promo-card.type-free_delivery{background:linear-gradient(135deg,#2563EB,#1D4ED8);}
+  .promo-card .promo-icon{position:absolute;right:-10px;top:-10px;font-size:64px;opacity:.15;}
+  .promo-card .promo-value{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:2px;}
+  .promo-card .promo-desc{font-size:11.5px;opacity:.92;margin-bottom:10px;line-height:1.4;}
+  .promo-card .promo-code-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.22);
+    border:1px dashed rgba(255,255,255,.6);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;letter-spacing:.03em;}
+  .promo-card .promo-scope{font-size:10px;opacity:.85;margin-top:8px;}
   .cat-chip{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 16px;background:#fff;
     border:1.5px solid var(--gray-200);border-radius:14px;cursor:pointer;min-width:76px;transition:.15s;}
   .cat-chip:hover{border-color:var(--green);}
@@ -315,6 +331,10 @@
   <main>
     <!-- ---------------- HOME ---------------- -->
     <div class="view active" id="view-home">
+      <div id="promo-section" style="display:none">
+        <div class="promo-scroll" id="promo-scroll"></div>
+      </div>
+
       <h2 class="section-title">Other services</h2>
       <div class="service-grid">
         <div class="service-card" data-service="pasabuy" onclick="openBooking('pasabuy')">
@@ -991,6 +1011,7 @@ async function loadHomeFeed() {
     const data = await api("/api/customer/home" + q);
     CATEGORIES = data.categories || [];
     renderCategories();
+    renderPromos(data.promos || []);
     renderStoreGrid("nearby-grid", data.nearby_stores || [], "No stores deliver to your area yet.");
     renderStoreGrid("popular-grid", data.popular_stores || [], "No popular stores yet.");
   } catch (e) { showToast(e.message, true); }
@@ -1003,6 +1024,35 @@ function renderCategories() {
       <span class="material-symbols-rounded">${CATEGORY_ICONS[c.icon] || CATEGORY_ICONS.default}</span>
       <span class="label">${escapeHtml(c.name)}</span>
     </div>`).join("");
+}
+
+function renderPromos(promos) {
+  const section = document.getElementById("promo-section");
+  const scroll = document.getElementById("promo-scroll");
+  if (!promos.length) { section.style.display = "none"; return; }
+  section.style.display = "block";
+
+  const iconFor = { percent: "percent", fixed: "sell", free_delivery: "local_shipping" };
+  const valueFor = (p) => {
+    if (p.discount_type === "percent") return `${Number(p.discount_value)}% OFF`;
+    if (p.discount_type === "fixed") return `${money(p.discount_value)} OFF`;
+    return "FREE DELIVERY";
+  };
+
+  scroll.innerHTML = promos.map(p => `
+    <div class="promo-card type-${p.discount_type}" onclick="copyPromoCode('${escapeHtml(p.code)}')">
+      <span class="material-symbols-rounded promo-icon">${iconFor[p.discount_type] || "local_offer"}</span>
+      <div class="promo-value">${valueFor(p)}</div>
+      <div class="promo-desc">${escapeHtml(p.description || (p.store_name ? `At ${p.store_name}` : "Use across the whole platform"))}</div>
+      <div class="promo-code-chip"><span class="material-symbols-rounded" style="font-size:14px">content_copy</span>${escapeHtml(p.code)}</div>
+      <div class="promo-scope">
+        ${p.min_order_amount > 0 ? `Min. order ${money(p.min_order_amount)} · ` : ""}${p.store_name ? escapeHtml(p.store_name) : "Platform-wide"}
+      </div>
+    </div>`).join("");
+}
+
+function copyPromoCode(code) {
+  navigator.clipboard.writeText(code).then(() => showToast(`Code "${code}" copied — paste it at checkout!`));
 }
 
 function renderStoreGrid(elId, stores, emptyMsg) {
