@@ -1513,13 +1513,16 @@ async function testNotificationSound() {
 }
 async function loadBadges() {
   try {
-    const [riders, merchants, withdrawals] = await Promise.all([
+    const [riders, merchants, withdrawals, pendingOrdersResult] = await Promise.all([
       api("/api/admin/riders/pending"), api("/api/admin/merchants/pending"), api("/api/admin/withdrawals"),
+      api("/api/admin/orders?status=pending"),
     ]);
+    const serviceRequests = (pendingOrdersResult.items || pendingOrdersResult).filter(o => o.order_type !== "store_order");
     setBadge("badge-riders", riders.length);
     setBadge("badge-merchants", merchants.length);
     setBadge("badge-withdrawals", withdrawals.length);
-    return { riders: riders.length, merchants: merchants.length, withdrawals: withdrawals.length };
+    setBadge("badge-service-requests", serviceRequests.length);
+    return { riders: riders.length, merchants: merchants.length, withdrawals: withdrawals.length, serviceRequests: serviceRequests.length };
   } catch (e) { /* silent on dashboard chrome */ return null; }
 }
 function setBadge(id, n) {
@@ -1560,6 +1563,7 @@ async function checkForNewRequests() {
   if (counts.riders > _lastCounts.riders) grew.push(`${counts.riders - _lastCounts.riders} new rider application${counts.riders - _lastCounts.riders > 1 ? "s" : ""}`);
   if (counts.merchants > _lastCounts.merchants) grew.push(`${counts.merchants - _lastCounts.merchants} new merchant application${counts.merchants - _lastCounts.merchants > 1 ? "s" : ""}`);
   if (counts.withdrawals > _lastCounts.withdrawals) grew.push(`${counts.withdrawals - _lastCounts.withdrawals} new withdrawal request${counts.withdrawals - _lastCounts.withdrawals > 1 ? "s" : ""}`);
+  if (counts.serviceRequests > _lastCounts.serviceRequests) grew.push(`${counts.serviceRequests - _lastCounts.serviceRequests} new service request${counts.serviceRequests - _lastCounts.serviceRequests > 1 ? "s" : ""} to review`);
 
   if (grew.length > 0) {
     const audio = document.getElementById("new-request-chime-audio");
