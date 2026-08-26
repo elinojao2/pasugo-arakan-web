@@ -377,7 +377,7 @@
           <button class="btn btn-primary btn-sm" onclick="openModal('modal-promo')"><span class="material-symbols-rounded" style="font-size:16px">add</span> New promo code</button>
         </div>
         <div class="table-wrap"><table>
-          <thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Min. order</th><th>Status</th></tr></thead>
+          <thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Min. order</th><th>Usage</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody id="promos-tbody"></tbody>
         </table></div>
       </div>
@@ -533,6 +533,25 @@
     <div class="modal-actions">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-promo')">Cancel</button>
       <button class="btn btn-primary btn-sm" onclick="createPromo()">Create</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modal-edit-promo">
+  <div class="modal">
+    <h3>Edit promo — <span id="edit-promo-code-label"></span></h3>
+    <p class="desc">Adjust how many times this code can be used, or turn it off entirely.</p>
+    <input type="hidden" id="edit-promo-id">
+    <div class="row2">
+      <div class="field"><label>Total use limit</label><input id="edit-promo-usage-limit" placeholder="Leave blank = unlimited"></div>
+      <div class="field"><label>Uses per customer</label><input id="edit-promo-per-user" placeholder="e.g. 1"></div>
+    </div>
+    <div class="field"><label>Status</label>
+      <select id="edit-promo-active"><option value="true">Active</option><option value="false">Inactive</option></select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-edit-promo')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveEditPromo()">Save changes</button>
     </div>
   </div>
 </div>
@@ -1440,11 +1459,48 @@ async function loadPromos() {
   document.getElementById("promos-tbody").innerHTML = skeletonRows(4);
   try {
     const promos = await api("/api/merchant/promo-codes");
+    PROMOS_CACHE = promos;
     document.getElementById("promos-tbody").innerHTML = promos.length ? promos.map(p => `
       <tr><td class="cell-strong">${p.code}</td><td style="text-transform:capitalize">${p.discount_type.replace("_"," ")}</td>
       <td>${p.discount_type === "free_delivery" ? "Free delivery" : (p.discount_type === "percent" ? p.discount_value + "%" : money(p.discount_value))}</td>
-      <td>${money(p.min_order_amount)}</td><td>${p.is_active ? chip("active") : chip("cancelled")}</td></tr>`).join("")
-      : `<tr><td colspan="5"><div class="empty-state"><span class="material-symbols-rounded">sell</span><div>No promo codes yet.</div></div></td></tr>`;
+      <td>${money(p.min_order_amount)}</td>
+      <td class="cell-sub">${p.times_used || 0}${p.usage_limit_total ? " / " + p.usage_limit_total : " used"}</td>
+      <td>${p.is_active ? chip("active") : chip("cancelled")}</td>
+      <td class="row-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openEditPromoModal(${p.id})">Edit</button>
+        <button class="btn btn-danger btn-sm" onclick="deletePromoCode(${p.id})"><span class="material-symbols-rounded" style="font-size:14px">delete</span></button>
+      </td></tr>`).join("")
+      : `<tr><td colspan="7"><div class="empty-state"><span class="material-symbols-rounded">sell</span><div>No promo codes yet.</div></div></td></tr>`;
+  } catch (e) { showToast(e.message, true); }
+}
+let PROMOS_CACHE = [];
+function openEditPromoModal(id) {
+  const p = PROMOS_CACHE.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById("edit-promo-id").value = p.id;
+  document.getElementById("edit-promo-code-label").textContent = p.code;
+  document.getElementById("edit-promo-usage-limit").value = p.usage_limit_total ?? "";
+  document.getElementById("edit-promo-per-user").value = p.usage_limit_per_user ?? 1;
+  document.getElementById("edit-promo-active").value = p.is_active ? "true" : "false";
+  openModal("modal-edit-promo");
+}
+async function saveEditPromo() {
+  const id = document.getElementById("edit-promo-id").value;
+  const usageLimitRaw = document.getElementById("edit-promo-usage-limit").value.trim();
+  try {
+    await api(`/api/merchant/promo-codes/${id}`, { method: "PUT", body: JSON.stringify({
+      usage_limit_total: usageLimitRaw === "" ? null : parseInt(usageLimitRaw),
+      usage_limit_per_user: parseInt(document.getElementById("edit-promo-per-user").value) || 1,
+      is_active: document.getElementById("edit-promo-active").value === "true",
+    })});
+    showToast("Promo code updated"); closeModal("modal-edit-promo"); loadPromos();
+  } catch (e) { showToast(e.message, true); }
+}
+async function deletePromoCode(id) {
+  if (!confirm("Delete this promo code? This cannot be undone.")) return;
+  try {
+    await api(`/api/merchant/promo-codes/${id}`, { method: "DELETE" });
+    showToast("Promo code deleted"); loadPromos();
   } catch (e) { showToast(e.message, true); }
 }
 async function createPromo() {
