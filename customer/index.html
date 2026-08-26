@@ -77,18 +77,16 @@
   /* ---------- Promo carousel ---------- */
   .promo-scroll{display:flex;gap:14px;overflow-x:auto;padding:4px 4px 14px;margin-bottom:8px;scroll-snap-type:x mandatory;}
   .promo-scroll::-webkit-scrollbar{height:6px;} .promo-scroll::-webkit-scrollbar-thumb{background:var(--gray-200);border-radius:10px;}
-  .promo-card{flex-shrink:0;width:260px;scroll-snap-align:start;border-radius:16px;padding:16px 18px;color:#fff;position:relative;
-    overflow:hidden;cursor:pointer;transition:transform .15s;box-shadow:0 8px 20px -8px rgba(0,0,0,.25);}
+  .promo-card{flex-shrink:0;width:260px;height:150px;scroll-snap-align:start;border-radius:16px;color:#fff;position:relative;
+    overflow:hidden;cursor:pointer;transition:transform .15s;box-shadow:0 8px 20px -8px rgba(0,0,0,.25);background-size:cover;background-position:center;}
   .promo-card:hover{transform:translateY(-2px);}
-  .promo-card.type-percent{background:linear-gradient(135deg,#16A34A,#15803D);}
-  .promo-card.type-fixed{background:linear-gradient(135deg,#EA580C,#C2410C);}
-  .promo-card.type-free_delivery{background:linear-gradient(135deg,#2563EB,#1D4ED8);}
-  .promo-card .promo-icon{position:absolute;right:-10px;top:-10px;font-size:64px;opacity:.15;}
-  .promo-card .promo-value{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:2px;}
-  .promo-card .promo-desc{font-size:11.5px;opacity:.92;margin-bottom:10px;line-height:1.4;}
-  .promo-card .promo-code-chip{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.22);
-    border:1px dashed rgba(255,255,255,.6);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;letter-spacing:.03em;}
-  .promo-card .promo-scope{font-size:10px;opacity:.85;margin-top:8px;}
+  .promo-card .promo-scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.15) 0%,rgba(0,0,0,.35) 50%,rgba(0,0,0,.8) 100%);}
+  .promo-card .promo-content{position:absolute;left:0;right:0;bottom:0;padding:16px 18px;}
+  .promo-card .promo-value{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:2px;text-shadow:0 1px 4px rgba(0,0,0,.4);}
+  .promo-card .promo-desc{font-size:11.5px;opacity:.95;margin-bottom:10px;line-height:1.4;}
+  .promo-card .promo-code-chip{display:inline-flex;align-items:center;gap:6px;background:#fff;color:var(--green-dark);
+    border-radius:20px;padding:4px 12px;font-size:12px;font-weight:800;letter-spacing:.03em;}
+  .promo-card .promo-scope{font-size:10px;opacity:.9;margin-top:8px;}
   .cat-chip{flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 16px;background:#fff;
     border:1.5px solid var(--gray-200);border-radius:14px;cursor:pointer;min-width:76px;transition:.15s;}
   .cat-chip:hover{border-color:var(--green);}
@@ -1032,29 +1030,30 @@ function renderPromos(promos) {
   if (!promos.length) { section.style.display = "none"; return; }
   section.style.display = "block";
 
-  const iconFor = { percent: "percent", fixed: "sell", free_delivery: "local_shipping" };
   const valueFor = (p) => {
     if (p.discount_type === "percent") return `${Number(p.discount_value)}% OFF`;
     if (p.discount_type === "fixed") return `${money(p.discount_value)} OFF`;
     return "FREE DELIVERY";
   };
 
-  scroll.innerHTML = promos.map(p => `
-    <div class="promo-card type-${p.discount_type}" onclick="copyPromoCode('${escapeHtml(p.code)}')">
-      <span class="material-symbols-rounded promo-icon">${iconFor[p.discount_type] || "local_offer"}</span>
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        <div style="width:24px;height:24px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.25);flex-shrink:0">
-          <img src="${p.store_logo_url || '../assets/promo_banner.png'}" style="width:100%;height:100%;object-fit:cover" onerror="this.src='../assets/promo_banner.png'">
+  // The background photo itself is what tells you at a glance whose promo
+  // this is — the merchant's real logo for a store-specific deal, or the
+  // Pasugo Arakan banner for a platform-wide one.
+  scroll.innerHTML = promos.map(p => {
+    const bgUrl = p.store_logo_url || "../assets/promo_banner.png";
+    return `
+    <div class="promo-card" style="background-image:url('${bgUrl}')" onclick="copyPromoCode('${escapeHtml(p.code)}')">
+      <div class="promo-scrim"></div>
+      <div class="promo-content">
+        <div class="promo-value">${valueFor(p)}</div>
+        <div class="promo-desc">${escapeHtml(p.description || (p.store_name ? `At ${p.store_name}` : "Use across the whole platform"))}</div>
+        <div class="promo-code-chip"><span class="material-symbols-rounded" style="font-size:14px;color:var(--green-dark)">content_copy</span>${escapeHtml(p.code)}</div>
+        <div class="promo-scope">
+          ${p.min_order_amount > 0 ? `Min. order ${money(p.min_order_amount)} · ` : ""}${p.store_name ? escapeHtml(p.store_name) : "Platform-wide"}
         </div>
-        <span style="font-size:8.5px;font-weight:800;letter-spacing:.5px;color:rgba(255,255,255,.85)">${p.store_logo_url ? "MERCHANT DEAL" : "PASUGO ARAKAN"}</span>
       </div>
-      <div class="promo-value">${valueFor(p)}</div>
-      <div class="promo-desc">${escapeHtml(p.description || (p.store_name ? `At ${p.store_name}` : "Use across the whole platform"))}</div>
-      <div class="promo-code-chip"><span class="material-symbols-rounded" style="font-size:14px">content_copy</span>${escapeHtml(p.code)}</div>
-      <div class="promo-scope">
-        ${p.min_order_amount > 0 ? `Min. order ${money(p.min_order_amount)} · ` : ""}${p.store_name ? escapeHtml(p.store_name) : "Platform-wide"}
-      </div>
-    </div>`).join("");
+    </div>`;
+  }).join("");
 }
 
 function copyPromoCode(code) {
