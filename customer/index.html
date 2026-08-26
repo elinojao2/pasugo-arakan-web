@@ -1042,6 +1042,12 @@ function renderPromos(promos) {
   scroll.innerHTML = promos.map(p => `
     <div class="promo-card type-${p.discount_type}" onclick="copyPromoCode('${escapeHtml(p.code)}')">
       <span class="material-symbols-rounded promo-icon">${iconFor[p.discount_type] || "local_offer"}</span>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <div style="width:24px;height:24px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.25);flex-shrink:0">
+          <img src="${p.store_logo_url || '../assets/promo_banner.png'}" style="width:100%;height:100%;object-fit:cover" onerror="this.src='../assets/promo_banner.png'">
+        </div>
+        <span style="font-size:8.5px;font-weight:800;letter-spacing:.5px;color:rgba(255,255,255,.85)">${p.store_logo_url ? "MERCHANT DEAL" : "PASUGO ARAKAN"}</span>
+      </div>
       <div class="promo-value">${valueFor(p)}</div>
       <div class="promo-desc">${escapeHtml(p.description || (p.store_name ? `At ${p.store_name}` : "Use across the whole platform"))}</div>
       <div class="promo-code-chip"><span class="material-symbols-rounded" style="font-size:14px">content_copy</span>${escapeHtml(p.code)}</div>
