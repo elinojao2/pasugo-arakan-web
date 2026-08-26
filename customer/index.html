@@ -240,7 +240,18 @@
         <div class="field"><label>Full name</label><input id="reg-name"></div>
         <div class="field"><label>Email (optional)</label><input id="reg-email"></div>
         <div class="field"><label>Mobile number</label><input id="reg-mobile" placeholder="09XXXXXXXXX"></div>
-        <div class="field"><label>Password (min. 6 characters)</label><input id="reg-password" type="password"></div>
+        <div class="field"><label>Password (min. 6 characters)</label>
+          <div style="position:relative">
+            <input id="reg-password" type="password" style="padding-right:38px">
+            <span onclick="togglePasswordVisibility('reg-password', this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--gray-600);font-size:12px;user-select:none">Show</span>
+          </div>
+        </div>
+        <div class="field"><label>Confirm password</label>
+          <div style="position:relative">
+            <input id="reg-password-confirm" type="password" style="padding-right:38px">
+            <span onclick="togglePasswordVisibility('reg-password-confirm', this)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--gray-600);font-size:12px;user-select:none">Show</span>
+          </div>
+        </div>
         <p style="font-size:11px;color:var(--gray-600);margin:-6px 0 14px;line-height:1.5">
           By creating an account, you agree to our <a href="https://pasugoarakan.com/terms/index.html" target="_blank" style="color:var(--green-dark);font-weight:600">Terms &amp; Conditions</a> and acknowledge our <a href="https://pasugoarakan.com/privacy/index.html" target="_blank" style="color:var(--green-dark);font-weight:600">Privacy Policy</a>.
         </p>
@@ -700,15 +711,25 @@ async function doLogin() {
   } catch (e) { errEl.textContent = e.message; }
 }
 
+function togglePasswordVisibility(inputId, labelEl) {
+  const input = document.getElementById(inputId);
+  const isHidden = input.type === "password";
+  input.type = isHidden ? "text" : "password";
+  labelEl.textContent = isHidden ? "Hide" : "Show";
+}
+
 async function doRegister() {
   const errEl = document.getElementById("auth-error"); errEl.textContent = "";
   const full_name = document.getElementById("reg-name").value.trim();
   const email = document.getElementById("reg-email").value.trim();
   const mobile_number = document.getElementById("reg-mobile").value.trim();
   const password = document.getElementById("reg-password").value;
+  const passwordConfirm = document.getElementById("reg-password-confirm").value;
   if (!full_name || !mobile_number || !password) {
     errEl.textContent = "Full name, mobile number, and password are required."; return;
   }
+  if (password.length < 6) { errEl.textContent = "Password must be at least 6 characters."; return; }
+  if (password !== passwordConfirm) { errEl.textContent = "Passwords do not match."; return; }
   try {
     const data = await api("/api/auth/register", { method: "POST", body: JSON.stringify({
       role: "customer", full_name, email: email || undefined, mobile_number, password,
