@@ -96,6 +96,16 @@
     align-items:center;justify-content:space-between;gap:16px;}
   .topbar h1{font-size:19px;font-weight:700;margin:0;letter-spacing:-.015em;} .topbar .crumbs{font-size:12px;color:var(--gray-600);margin-top:2px;}
   .topbar-actions{display:flex;align-items:center;gap:10px;}
+  .sos-banner{background:linear-gradient(135deg,#DC2626,#991B1B);color:#fff;padding:14px 24px;display:flex;align-items:center;gap:14px;
+    box-shadow:0 4px 16px -4px rgba(220,38,38,.5);animation:sos-pulse 1.4s infinite;position:relative;z-index:20;}
+  @keyframes sos-pulse{0%,100%{box-shadow:0 4px 16px -4px rgba(220,38,38,.5);}50%{box-shadow:0 4px 28px -2px rgba(220,38,38,.9);}}
+  .sos-banner .sos-icon{font-size:26px;flex-shrink:0;}
+  .sos-banner .sos-text{flex:1;}
+  .sos-banner .sos-title{font-weight:800;font-size:14px;letter-spacing:.02em;}
+  .sos-banner .sos-sub{font-size:12px;opacity:.9;}
+  .sos-banner .sos-actions{display:flex;gap:8px;}
+  .sos-banner .sos-actions .btn{background:#fff;color:#991B1B;font-weight:700;}
+  .sos-banner .sos-actions .btn:hover{background:#FEE2E2;}
   .icon-btn{width:38px;height:38px;border-radius:11px;background:var(--white);border:1px solid var(--gray-200);
     transition:.16s var(--ease);    display:flex;align-items:center;justify-content:center;color:var(--ink-2);position:relative;}
   .icon-btn:hover{background:var(--gray-100);border-color:var(--gray-400);transform:translateY(-1px);}
@@ -721,6 +731,7 @@ select.filter:focus{
     <div class="nav-label">Approvals</div>
     <div class="nav-group">
       <div class="nav-item" data-view="riders"><span class="material-symbols-rounded">two_wheeler</span>Riders<span class="badge" id="badge-riders" style="display:none">0</span></div>
+      <div class="nav-item" data-view="live-riders"><span class="material-symbols-rounded">near_me</span>Live Riders</div>
       <div class="nav-item" data-view="merchants"><span class="material-symbols-rounded">storefront</span>Merchants<span class="badge" id="badge-merchants" style="display:none">0</span></div>
     </div>
     <div class="nav-label">Platform</div>
@@ -741,6 +752,7 @@ select.filter:focus{
   </aside>
 
   <div class="main">
+      <div id="sos-banner-stack"></div>
     <div class="topbar">
       <div><h1 id="page-title">Overview</h1><div class="crumbs" id="page-crumb">Platform performance at a glance</div></div>
       <button class="icon-btn" id="mobile-menu-btn" onclick="toggleMobileSidebar()" title="Menu" style="display:none">
@@ -842,6 +854,11 @@ select.filter:focus{
         <div id="riders-pending-list" class="grid cols-3"></div>
       </div>
 
+      <!-- ---------------- LIVE RIDERS ---------------- -->
+      <div class="view" id="view-live-riders">
+        <div class="section-title"><h2>Online riders right now</h2><span class="sub" id="live-riders-count"></span></div>
+        <div id="live-riders-list" class="grid cols-3"></div>
+      </div>
       <!-- ---------------- MERCHANTS ---------------- -->
       <div class="view" id="view-merchants">
         <div class="section-title"><h2>Pending merchant applications</h2></div>
@@ -1350,6 +1367,7 @@ function enterApp() {
   navigate("overview");
   startRequestPolling();
   startSosPolling();
+  startSosPolling();
 }
 
 function logout() {
@@ -1460,6 +1478,7 @@ const loaders = {
   orders: loadOrders,
   "live-map": loadLiveMap,
   riders: loadPendingRiders,
+  "live-riders": loadLiveRiders,
   merchants: () => { loadPendingMerchants(); loadAllMerchants(); },
   users: loadUsers,
   categories: loadCategories,
@@ -1478,6 +1497,7 @@ const titles = {
   orders: ["Orders", "Every order across the platform"],
   "live-map": ["Live Riders", "Real-time rider locations feed"],
   riders: ["Rider Approvals", "Review documents before activating riders"],
+  "live-riders": ["Live Riders", "Riders currently online, for dispatch and emergencies"],
   merchants: ["Merchant Approvals", "Review store details before going live"],
   users: ["Users", "Customers, riders, merchants, and admins"],
   categories: ["Categories", "Storefront browsing categories"],
@@ -1566,6 +1586,57 @@ function stopRequestPolling() {
   clearInterval(_requestPollTimer);
   _requestPollTimer = null;
   _lastCounts = null;
+}
+// ------------------------------------------------------------- SOS alerts --
+// A rider emergency is time-critical, so this is a persistent, hard-to-miss
+// red banner across the top of the dashboard - not buried in a nav tab -
+// polled independently of whichever section the operator is currently
+// viewing. Workers (not just the owner admin) can resolve these.
+let _sosPollTimer = null;
+let _knownSosIds = new Set();
+function startSosPolling() {
+  clearInterval(_sosPollTimer);
+  _knownSosIds = new Set();
+  checkSosAlerts();
+  _sosPollTimer = setInterval(checkSosAlerts, 10000);
+}
+async function checkSosAlerts() {
+  try {
+    const alerts = await api("/api/admin/sos/active");
+    const currentIds = new Set(alerts.map(a => a.id));
+    const isFirstPoll = _knownSosIds.size === 0 && currentIds.size > 0 && !window._sosPrimed;
+    window._sosPrimed = true;
+    const newOnes = alerts.filter(a => !_knownSosIds.has(a.id));
+    if (newOnes.length > 0 && !isFirstPoll) {
+      const audio = document.getElementById("new-request-chime-audio");
+      if (audio) { audio.play().catch(() => {}); setTimeout(() => audio.play().catch(() => {}), 500); }
+    }
+    _knownSosIds = currentIds;
+    renderSosBanners(alerts);
+  } catch (e) { /* silent - do not let a failed poll spam errors */ }
+}
+function renderSosBanners(alerts) {
+  const stack = document.getElementById("sos-banner-stack");
+  stack.innerHTML = alerts.map(a => `
+    <div class="sos-banner">
+      <span class="material-symbols-rounded sos-icon">emergency</span>
+      <div class="sos-text">
+        <div class="sos-title">EMERGENCY: ${escapeHtml(a.rider_name || "Rider")} needs help</div>
+        <div class="sos-sub">Triggered ${dt(a.created_at)}${a.rider_mobile_number ? " - " + a.rider_mobile_number : ""}</div>
+      </div>
+      <div class="sos-actions">
+        ${a.rider_mobile_number ? `<a href="tel:${a.rider_mobile_number}" class="btn btn-sm"><span class="material-symbols-rounded" style="font-size:15px">call</span> Call</a>` : ""}
+        <a href="https://www.google.com/maps?q=${a.lat},${a.lng}" target="_blank" class="btn btn-sm"><span class="material-symbols-rounded" style="font-size:15px">location_on</span> Locate</a>
+        <button class="btn btn-sm" onclick="resolveSosAlert(${a.id})">Mark Resolved</button>
+      </div>
+    </div>`).join("");
+}
+async function resolveSosAlert(id) {
+  try {
+    await api(`/api/admin/sos/${id}/resolve`, { method: "POST" });
+    showToast("SOS alert resolved");
+    checkSosAlerts();
+  } catch (e) { showToast(e.message, true); }
 }
 
 async function checkForNewRequests() {
@@ -2026,6 +2097,29 @@ async function loadPendingRiders() {
           <button class="btn btn-danger btn-sm" onclick="openRejectModal('rider', ${r.id})"><span class="material-symbols-rounded" style="font-size:15px">close</span> Reject</button>
         </div>
       </div>`).join("") : emptyCard("verified", "No pending rider applications.");
+  } catch (e) { showToast(e.message, true); }
+}
+async function loadLiveRiders() {
+  const grid = document.getElementById("live-riders-list");
+  const countEl = document.getElementById("live-riders-count");
+  grid.innerHTML = statSkeletons(3);
+  try {
+    const riders = await api("/api/admin/riders/live-locations");
+    countEl.textContent = `${riders.length} online`;
+    grid.innerHTML = riders.length ? riders.map(r => `
+      <div class="card" style="${r.sos_active ? "border-color:var(--red);background:var(--red-tint)" : ""}">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div class="cell-strong" style="font-size:14.5px">${escapeHtml(r.name)}</div>
+          ${r.sos_active ? chip("cancelled") : (r.on_delivery ? chip("assigned") : chip("active"))}
+        </div>
+        <div class="cell-sub" style="margin-top:6px">
+          ${r.sos_active ? "SOS ACTIVE" : (r.on_delivery ? "On a delivery" : "Available")}
+        </div>
+        <div class="cell-sub">Last updated: ${r.last_update ? dt(r.last_update) : "-"}</div>
+        <div class="row-actions" style="margin-top:10px">
+          <a href="https://www.google.com/maps?q=${r.lat},${r.lng}" target="_blank" class="btn btn-ghost btn-sm"><span class="material-symbols-rounded" style="font-size:15px">location_on</span> Locate</a>
+        </div>
+      </div>`).join("") : emptyCard("two_wheeler", "No riders currently online.");
   } catch (e) { showToast(e.message, true); }
 }
 function openRiderDocumentsModal(rider) {
