@@ -1358,15 +1358,28 @@ async function doLogin() {
   }
 }
 
+// Worker admins get a deliberately narrowed dashboard - only the
+// sections relevant to reviewing service requests, dispatch, and
+// day-to-day operations. Owner-only sections (Team, Settings, Earnings,
+// Promo Codes, Users, Categories, Support, Withdrawals, and the older
+// live-map view) are hidden entirely rather than just made read-only,
+// so a worker is not confused by options they cannot use anyway.
+const WORKER_ALLOWED_VIEWS = new Set(["overview", "orders", "live-riders", "riders", "merchants", "service-requests"]);
+function applyWorkerNavRestrictions() {
+  if (ME.is_super_admin !== false) return;
+  document.querySelectorAll(".nav-item[data-view]").forEach(el => {
+    if (!WORKER_ALLOWED_VIEWS.has(el.dataset.view)) el.style.display = "none";
+  });
+}
 function enterApp() {
   document.getElementById("login-screen").style.display = "none";
   document.getElementById("app").classList.add("active");
   document.getElementById("user-name-menu").textContent = ME.full_name;
   document.getElementById("user-avatar-menu").textContent = (ME.full_name || "A").charAt(0).toUpperCase();
   document.getElementById("user-role-menu").textContent = ME.is_super_admin === false ? "Worker admin — view only" : "Administrator";
+  applyWorkerNavRestrictions();
   navigate("overview");
   startRequestPolling();
-  startSosPolling();
   startSosPolling();
 }
 
@@ -1587,58 +1600,6 @@ function stopRequestPolling() {
   _requestPollTimer = null;
   _lastCounts = null;
 }
-// ------------------------------------------------------------- SOS alerts --
-// A rider emergency is time-critical, so this is a persistent, hard-to-miss
-// red banner across the top of the dashboard - not buried in a nav tab -
-// polled independently of whichever section the operator is currently
-// viewing. Workers (not just the owner admin) can resolve these.
-let _sosPollTimer = null;
-let _knownSosIds = new Set();
-function startSosPolling() {
-  clearInterval(_sosPollTimer);
-  _knownSosIds = new Set();
-  checkSosAlerts();
-  _sosPollTimer = setInterval(checkSosAlerts, 10000);
-}
-async function checkSosAlerts() {
-  try {
-    const alerts = await api("/api/admin/sos/active");
-    const currentIds = new Set(alerts.map(a => a.id));
-    const isFirstPoll = _knownSosIds.size === 0 && currentIds.size > 0 && !window._sosPrimed;
-    window._sosPrimed = true;
-    const newOnes = alerts.filter(a => !_knownSosIds.has(a.id));
-    if (newOnes.length > 0 && !isFirstPoll) {
-      const audio = document.getElementById("new-request-chime-audio");
-      if (audio) { audio.play().catch(() => {}); setTimeout(() => audio.play().catch(() => {}), 500); }
-    }
-    _knownSosIds = currentIds;
-    renderSosBanners(alerts);
-  } catch (e) { /* silent - do not let a failed poll spam errors */ }
-}
-function renderSosBanners(alerts) {
-  const stack = document.getElementById("sos-banner-stack");
-  stack.innerHTML = alerts.map(a => `
-    <div class="sos-banner">
-      <span class="material-symbols-rounded sos-icon">emergency</span>
-      <div class="sos-text">
-        <div class="sos-title">EMERGENCY: ${escapeHtml(a.rider_name || "Rider")} needs help</div>
-        <div class="sos-sub">Triggered ${dt(a.created_at)}${a.rider_mobile_number ? " - " + a.rider_mobile_number : ""}</div>
-      </div>
-      <div class="sos-actions">
-        ${a.rider_mobile_number ? `<a href="tel:${a.rider_mobile_number}" class="btn btn-sm"><span class="material-symbols-rounded" style="font-size:15px">call</span> Call</a>` : ""}
-        <a href="https://www.google.com/maps?q=${a.lat},${a.lng}" target="_blank" class="btn btn-sm"><span class="material-symbols-rounded" style="font-size:15px">location_on</span> Locate</a>
-        <button class="btn btn-sm" onclick="resolveSosAlert(${a.id})">Mark Resolved</button>
-      </div>
-    </div>`).join("");
-}
-async function resolveSosAlert(id) {
-  try {
-    await api(`/api/admin/sos/${id}/resolve`, { method: "POST" });
-    showToast("SOS alert resolved");
-    checkSosAlerts();
-  } catch (e) { showToast(e.message, true); }
-}
-
 async function checkForNewRequests() {
   const counts = await loadBadges();
   if (!counts) return;
