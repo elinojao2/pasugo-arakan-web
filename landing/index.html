@@ -47,7 +47,7 @@
     a{color:inherit;text-decoration:none}
     button{font:inherit}
     img{display:block;max-width:100%}
-    .wrap{width:min(var(--max),calc(100% - 40px));margin:auto}
+    .wrap{width:min(var(--max),calc(100% - 40px));margin:auto;padding-inline:0}
     section{padding:96px 0}
     .material-symbols-rounded{
       font-variation-settings:'FILL' 1,'wght' 500,'GRAD' 0,'opsz' 24;
@@ -342,20 +342,9 @@
     .route-pin img{width:100%;height:100%;object-fit:contain}
     .route-pin.store{left:17%;top:34%}
     .route-pin.home{left:83%;top:70%}
-    .route-rider{
-      position:absolute;width:48px;height:48px;
-      transform:translate(-50%,-50%);
-      offset-path:path("M 92 170 C 205 90, 305 350, 430 305");
-      animation:rideRoute 5s ease-in-out infinite 2s;
-      opacity:0;z-index:5
-    }
-    .route-rider img{width:100%;height:100%;object-fit:contain}
-    @keyframes rideRoute{
-      0%{offset-distance:0%;opacity:0}
-      5%{opacity:1}
-      92%{opacity:1}
-      100%{offset-distance:100%;opacity:0}
-    }
+    /* Rider is animated inside the same SVG path as the route.
+       This keeps it exactly on the Tindahan → Bahay route at every screen size. */
+    .route-rider{display:none}
     .route-label{
       position:absolute;padding:8px 11px;
       background:#fff;border:1px solid var(--line);border-radius:11px;
@@ -720,6 +709,56 @@
       .footer-grid>div:last-child{display:block}
       .footer-bottom{flex-direction:column}
     }
+    /* ---------- EXTRA RESPONSIVE POLISH ---------- */
+    .route-stage svg{overflow:visible}
+    .svg-rider{pointer-events:none;filter:drop-shadow(0 7px 9px rgba(0,0,0,.16))}
+
+    @media(max-width:980px){
+      .hero-grid{gap:36px}
+      .hero h1{max-width:760px}
+      .route-card{width:100%}
+    }
+
+    @media(max-width:720px){
+      .wrap{width:calc(100% - 28px)}
+      .hero-grid{gap:30px}
+      .hero h1{font-size:clamp(36px,10vw,46px);line-height:1.05}
+      .lede{font-size:14px;line-height:1.7}
+      .route-card{min-height:360px}
+      .route-top{left:15px;right:15px;top:15px}
+      .live-badge,.route-service{font-size:9px;padding:7px 9px}
+      .route-pin{width:46px;height:46px}
+      .route-label.l1{transform:translate(-50%,23px)}
+      .route-label.l2{transform:translate(-50%,23px)}
+      .route-bottom{left:12px;right:12px;bottom:12px}
+      .route-note{font-size:9px;padding:8px 11px}
+      .service-grid{gap:12px}
+      .service-card{padding:23px 19px}
+      .join-card{padding:26px}
+      .modal-backdrop{padding:14px}
+      .modal{padding:30px 20px 22px;border-radius:23px}
+    }
+
+    @media(max-width:420px){
+      .wrap{width:calc(100% - 24px)}
+      nav .wrap{height:64px}
+      .brand-logo{width:38px;height:38px}
+      .brand-text{font-size:15px}
+      .brand-text small{font-size:8px}
+      .hero{padding:40px 0 48px}
+      .hero h1{font-size:35px}
+      .hero-actions{margin-top:24px}
+      .hero-actions .btn{min-height:50px}
+      .hero-trust{margin-top:26px}
+      .route-card{min-height:320px;border-radius:21px}
+      .route-pin{width:42px;height:42px}
+      .route-label{font-size:8.5px}
+      .route-note{max-width:90%;text-align:center}
+      .how-box{padding:34px 20px}
+      .why-visual{min-height:300px}
+      .floating-pill{max-width:42%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    }
+
     @media(prefers-reduced-motion:reduce){
       html{scroll-behavior:auto}
       *,*:before,*:after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
@@ -836,7 +875,22 @@
 
         <div class="route-stage">
           <svg viewBox="0 0 520 470" preserveAspectRatio="none" aria-hidden="true">
-            <path class="route-path" d="M 92 170 C 205 90, 305 350, 430 305"></path>
+            <path id="delivery-route" class="route-path"
+                  d="M 88 160 C 185 92, 318 385, 432 329"></path>
+
+            <!-- Motorcycle follows the exact same path and rotates with its direction. -->
+            <g class="svg-rider">
+              <image href="../assets/rider_marker.png"
+                     x="-24" y="-24" width="48" height="48"
+                     preserveAspectRatio="xMidYMid meet">
+                <animateMotion dur="5.5s" begin="0.8s" repeatCount="indefinite"
+                                rotate="auto" path="M 88 160 C 185 92, 318 385, 432 329"/>
+                <animate attributeName="opacity"
+                         values="0;0;1;1;1;0"
+                         keyTimes="0;0.05;0.10;0.88;0.94;1"
+                         dur="5.5s" begin="0.8s" repeatCount="indefinite"/>
+              </image>
+            </g>
           </svg>
 
           <div class="route-pin store">
