@@ -67,7 +67,7 @@
   #app{display:none;min-height:100vh;}
   #app.active{display:flex;}
   .sidebar{width:244px;flex-shrink:0;background:linear-gradient(180deg,#0F172A 0%,#0B1120 100%);color:#E5E7EB;display:flex;flex-direction:column;padding:22px 14px;
-    position:sticky;top:0;height:100vh;box-shadow:2px 0 24px -8px rgba(0,0,0,.15);}
+    position:sticky;top:0;height:100vh;overflow-y:auto;box-shadow:2px 0 24px -8px rgba(0,0,0,.15);}
   .sidebar .brand{display:flex;align-items:center;gap:11px;padding:6px 10px 26px;}
   .sidebar .brand .mark{width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,var(--green-light),var(--green-dark));display:flex;align-items:center;
     justify-content:center;color:#fff;font-weight:800;font-size:15px;flex-shrink:0;box-shadow:var(--shadow-green);}
@@ -326,6 +326,7 @@ body{
   background:linear-gradient(180deg,#0B1720 0%,#08121B 100%);
   border-right:1px solid rgba(255,255,255,.05);
   box-shadow:10px 0 35px rgba(15,23,42,.08);
+  overflow-y:auto;
 }
 .sidebar .brand{
   padding:7px 10px 25px;
