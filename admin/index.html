@@ -992,6 +992,7 @@ select.filter:focus{
           <button class="acct-tab-btn active" id="acct-tab-btn-dashboard" onclick="switchAccountingTab('dashboard')">Dashboard</button>
           <button class="acct-tab-btn" id="acct-tab-btn-journal" onclick="switchAccountingTab('journal')">General Journal</button>
           <button class="acct-tab-btn" id="acct-tab-btn-accounts" onclick="switchAccountingTab('accounts')">Chart of Accounts</button>
+          <button class="acct-tab-btn" id="acct-tab-btn-expenses" onclick="switchAccountingTab('expenses')">Expenses</button>
         </div>
         <div id="acct-tab-dashboard">
           <div class="grid cols-4" id="accounting-stats"></div>
@@ -1014,6 +1015,13 @@ select.filter:focus{
           <div class="table-wrap"><table>
             <thead><tr><th>Code</th><th>Name</th><th>Type</th><th>Normal Balance</th></tr></thead>
             <tbody id="acct-accounts-tbody"></tbody>
+          </table></div>
+        </div>
+        <div id="acct-tab-expenses" style="display:none">
+          <div class="section-title"><h2>Expenses</h2><button class="btn btn-primary btn-sm" onclick="openAddExpenseModal()"><span class="material-symbols-rounded" style="font-size:15px">add</span> Add Expense</button></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Expense #</th><th>Date</th><th>Category</th><th>Description</th><th>Amount</th><th>Payment Method</th><th>Reference</th><th>Created By</th></tr></thead>
+            <tbody id="acct-expenses-tbody"></tbody>
           </table></div>
         </div>
       </div>
@@ -1130,6 +1138,35 @@ select.filter:focus{
   </div>
 </div>
 
+<div class="modal-backdrop" id="modal-add-expense">
+  <div class="modal">
+    <h3 style="margin-top:0">Add Expense</h3>
+    <div class="field"><label>Category</label>
+      <select id="exp-category">
+        <option value="rider">Rider</option>
+        <option value="advertising">Advertising</option>
+        <option value="internet_load">Internet/Load</option>
+        <option value="hosting_software">Hosting/Software</option>
+        <option value="office_supplies">Office Supplies</option>
+        <option value="other">Other Operating Expenses</option>
+      </select>
+    </div>
+    <div class="field"><label>Description</label><input type="text" id="exp-description"></div>
+    <div class="field"><label>Amount (\u20B1)</label><input type="number" id="exp-amount" step="0.01" min="0"></div>
+    <div class="field"><label>Payment Method</label>
+      <select id="exp-payment-method">
+        <option value="cash">Cash</option>
+        <option value="gcash">GCash</option>
+        <option value="bank">Bank</option>
+      </select>
+    </div>
+    <div class="field"><label>Reference Number (optional)</label><input type="text" id="exp-reference"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-add-expense')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="saveExpense()">Save Expense</button>
+    </div>
+  </div>
+</div>
 <div class="modal-backdrop" id="modal-admin-order-detail">
   <div class="modal" style="max-width:640px">
     <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -2949,12 +2986,13 @@ window.addEventListener('load', updateModernMenuButton);
 let ACCT_ACTIVE_TAB = "dashboard";
 function switchAccountingTab(tab) {
   ACCT_ACTIVE_TAB = tab;
-  ["dashboard", "journal", "accounts"].forEach(t => {
+  ["dashboard", "journal", "accounts", "expenses"].forEach(t => {
     document.getElementById(`acct-tab-${t}`).style.display = t === tab ? "" : "none";
     document.getElementById(`acct-tab-btn-${t}`).classList.toggle("active", t === tab);
   });
   if (tab === "journal") loadAccountingJournal();
   if (tab === "accounts") loadChartOfAccounts();
+  if (tab === "expenses") loadAccountingExpenses();
 }
 async function loadAccountingDashboard() {
   switchAccountingTab(ACCT_ACTIVE_TAB);
@@ -3010,6 +3048,50 @@ async function loadChartOfAccounts() {
         <td>${chip(a.type)}</td>
         <td>${escapeHtml(a.normal_balance)}</td>
       </tr>`).join("");
+  } catch (e) { showToast(e.message, true); }
+}
+const EXPENSE_CATEGORY_LABELS = { rider: "Rider", advertising: "Advertising", internet_load: "Internet/Load", hosting_software: "Hosting/Software", office_supplies: "Office Supplies", other: "Other Operating Expenses" };
+async function loadAccountingExpenses() {
+  const tbody = document.getElementById("acct-expenses-tbody");
+  tbody.innerHTML = skeletonRows(6);
+  try {
+    const data = await api("/api/admin/accounting/expenses");
+    tbody.innerHTML = data.items.length ? data.items.map(e => `
+      <tr>
+        <td class="cell-strong">${escapeHtml(e.expense_number)}</td>
+        <td>${dt(e.expense_date)}</td>
+        <td>${EXPENSE_CATEGORY_LABELS[e.category] || escapeHtml(e.category)}</td>
+        <td>${escapeHtml(e.description || "")}</td>
+        <td>\u20B1${e.amount.toLocaleString()}</td>
+        <td>${escapeHtml(e.payment_method)}</td>
+        <td>${escapeHtml(e.reference_number || "")}</td>
+        <td>${escapeHtml(e.created_by_name || "")}</td>
+      </tr>`).join("") : `<tr><td colspan="8"><div class="empty-state"><span class="material-symbols-rounded">receipt_long</span>No expenses recorded yet.</div></td></tr>`;
+  } catch (e) { showToast(e.message, true); }
+}
+function openAddExpenseModal() {
+  document.getElementById("exp-category").value = "rider";
+  document.getElementById("exp-description").value = "";
+  document.getElementById("exp-amount").value = "";
+  document.getElementById("exp-payment-method").value = "cash";
+  document.getElementById("exp-reference").value = "";
+  openModal("modal-add-expense");
+}
+async function saveExpense() {
+  const amount = document.getElementById("exp-amount").value;
+  if (!amount || parseFloat(amount) <= 0) { showToast("Enter a valid amount", true); return; }
+  const payload = {
+    category: document.getElementById("exp-category").value,
+    description: document.getElementById("exp-description").value,
+    amount: amount,
+    payment_method: document.getElementById("exp-payment-method").value,
+    reference_number: document.getElementById("exp-reference").value,
+  };
+  try {
+    await api("/api/admin/accounting/expenses", { method: "POST", body: JSON.stringify(payload) });
+    closeModal("modal-add-expense");
+    showToast("Expense recorded");
+    loadAccountingExpenses();
   } catch (e) { showToast(e.message, true); }
 }
 </script>
