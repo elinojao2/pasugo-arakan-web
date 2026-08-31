@@ -994,6 +994,8 @@ select.filter:focus{
           <button class="acct-tab-btn" id="acct-tab-btn-accounts" onclick="switchAccountingTab('accounts')">Chart of Accounts</button>
           <button class="acct-tab-btn" id="acct-tab-btn-expenses" onclick="switchAccountingTab('expenses')">Expenses</button>
           <button class="acct-tab-btn" id="acct-tab-btn-ledger" onclick="switchAccountingTab('ledger')">General Ledger</button>
+          <button class="acct-tab-btn" id="acct-tab-btn-merchant-ledger" onclick="switchAccountingTab('merchant-ledger')">Merchant Ledger</button>
+          <button class="acct-tab-btn" id="acct-tab-btn-rider-ledger" onclick="switchAccountingTab('rider-ledger')">Rider Ledger</button>
         </div>
         <div id="acct-tab-dashboard">
           <div class="grid cols-4" id="accounting-stats"></div>
@@ -1037,6 +1039,24 @@ select.filter:focus{
           <div class="table-wrap"><table>
             <thead><tr><th>Date</th><th>Reference</th><th>Description</th><th>Debit</th><th>Credit</th><th>Running Balance</th></tr></thead>
             <tbody id="acct-ledger-tbody"></tbody>
+          </table></div>
+        </div>
+        <div id="acct-tab-merchant-ledger" style="display:none">
+          <div class="section-title"><h2>Merchant Ledger</h2></div>
+          <select id="acct-merchant-picker" class="input" style="width:auto;min-width:220px;margin-bottom:14px" onchange="loadMerchantLedger()"><option value="">Select a merchant...</option></select>
+          <div id="acct-merchant-summary" class="grid cols-3" style="margin-bottom:14px"></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Order #</th><th>Date</th><th>Order Amount</th><th>Commission</th><th>Amount Payable</th></tr></thead>
+            <tbody id="acct-merchant-ledger-tbody"></tbody>
+          </table></div>
+        </div>
+        <div id="acct-tab-rider-ledger" style="display:none">
+          <div class="section-title"><h2>Rider Ledger</h2></div>
+          <select id="acct-rider-picker" class="input" style="width:auto;min-width:220px;margin-bottom:14px" onchange="loadRiderLedger()"><option value="">Select a rider...</option></select>
+          <div id="acct-rider-summary" class="grid cols-3" style="margin-bottom:14px"></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Order #</th><th>Date</th><th>Delivery Fee</th><th>Rider Earnings</th></tr></thead>
+            <tbody id="acct-rider-ledger-tbody"></tbody>
           </table></div>
         </div>
       </div>
@@ -3001,7 +3021,7 @@ window.addEventListener('load', updateModernMenuButton);
 let ACCT_ACTIVE_TAB = "dashboard";
 function switchAccountingTab(tab) {
   ACCT_ACTIVE_TAB = tab;
-  ["dashboard", "journal", "accounts", "expenses", "ledger"].forEach(t => {
+  ["dashboard", "journal", "accounts", "expenses", "ledger", "merchant-ledger", "rider-ledger"].forEach(t => {
     document.getElementById(`acct-tab-${t}`).style.display = t === tab ? "" : "none";
     document.getElementById(`acct-tab-btn-${t}`).classList.toggle("active", t === tab);
   });
@@ -3009,6 +3029,8 @@ function switchAccountingTab(tab) {
   if (tab === "accounts") loadChartOfAccounts();
   if (tab === "expenses") loadAccountingExpenses();
   if (tab === "ledger") loadLedgerAccountOptions();
+  if (tab === "merchant-ledger") loadMerchantPickerOptions();
+  if (tab === "rider-ledger") loadRiderPickerOptions();
 }
 async function loadAccountingDashboard() {
   switchAccountingTab(ACCT_ACTIVE_TAB);
@@ -3143,6 +3165,71 @@ async function loadAccountingLedger() {
         <td>${l.credit ? '\u20B1' + l.credit.toLocaleString() : ""}</td>
         <td class="cell-strong">\u20B1${l.running_balance.toLocaleString()}</td>
       </tr>`).join("") : `<tr><td colspan="6"><div class="empty-state"><span class="material-symbols-rounded">receipt_long</span>No activity for this account in the selected range.</div></td></tr>`;
+  } catch (e) { showToast(e.message, true); }
+}
+let MERCHANT_PICKER_CACHE = [];
+async function loadMerchantPickerOptions() {
+  if (MERCHANT_PICKER_CACHE.length) return;
+  try {
+    const merchants = await api("/api/admin/accounting/merchants-list");
+    MERCHANT_PICKER_CACHE = merchants;
+    document.getElementById("acct-merchant-picker").innerHTML = '<option value="">Select a merchant...</option>' + merchants.map(m => `<option value="${m.id}">${escapeHtml(m.business_name)}</option>`).join("");
+  } catch (e) { showToast(e.message, true); }
+}
+async function loadMerchantLedger() {
+  const merchantId = document.getElementById("acct-merchant-picker").value;
+  const tbody = document.getElementById("acct-merchant-ledger-tbody");
+  const summary = document.getElementById("acct-merchant-summary");
+  if (!merchantId) { tbody.innerHTML = ""; summary.innerHTML = ""; return; }
+  tbody.innerHTML = skeletonRows(5);
+  try {
+    const data = await api(`/api/admin/accounting/merchant-ledger?merchant_id=${merchantId}`);
+    const totalPayable = data.orders.reduce((s, o) => s + o.amount_payable, 0);
+    summary.innerHTML = [
+      statCard("account_balance_wallet", "Wallet Balance", `\u20B1${data.wallet_balance.toLocaleString()}`),
+      statCard("paid", "Total Paid Out", `\u20B1${data.total_paid_out.toLocaleString()}`),
+      statCard("storefront", "Total Earned (all orders)", `\u20B1${totalPayable.toLocaleString()}`),
+    ].join("");
+    tbody.innerHTML = data.orders.length ? data.orders.map(o => `
+      <tr>
+        <td class="cell-strong">${escapeHtml(o.order_number)}</td>
+        <td>${dt(o.date)}</td>
+        <td>\u20B1${o.order_amount.toLocaleString()}</td>
+        <td>\u20B1${o.commission.toLocaleString()}</td>
+        <td class="cell-strong">\u20B1${o.amount_payable.toLocaleString()}</td>
+      </tr>`).join("") : `<tr><td colspan="5"><div class="empty-state"><span class="material-symbols-rounded">storefront</span>No orders yet for this merchant.</div></td></tr>`;
+  } catch (e) { showToast(e.message, true); }
+}
+let RIDER_PICKER_CACHE = [];
+async function loadRiderPickerOptions() {
+  if (RIDER_PICKER_CACHE.length) return;
+  try {
+    const riders = await api("/api/admin/accounting/riders-list");
+    RIDER_PICKER_CACHE = riders;
+    document.getElementById("acct-rider-picker").innerHTML = '<option value="">Select a rider...</option>' + riders.map(r => `<option value="${r.id}">${escapeHtml(r.full_name)}</option>`).join("");
+  } catch (e) { showToast(e.message, true); }
+}
+async function loadRiderLedger() {
+  const riderId = document.getElementById("acct-rider-picker").value;
+  const tbody = document.getElementById("acct-rider-ledger-tbody");
+  const summary = document.getElementById("acct-rider-summary");
+  if (!riderId) { tbody.innerHTML = ""; summary.innerHTML = ""; return; }
+  tbody.innerHTML = skeletonRows(5);
+  try {
+    const data = await api(`/api/admin/accounting/rider-ledger?rider_id=${riderId}`);
+    const totalEarned = data.orders.reduce((s, o) => s + o.rider_earnings, 0);
+    summary.innerHTML = [
+      statCard("account_balance_wallet", "Wallet Balance", `\u20B1${data.wallet_balance.toLocaleString()}`),
+      statCard("paid", "Total Paid Out", `\u20B1${data.total_paid_out.toLocaleString()}`),
+      statCard("two_wheeler", "Total Earned (all orders)", `\u20B1${totalEarned.toLocaleString()}`),
+    ].join("");
+    tbody.innerHTML = data.orders.length ? data.orders.map(o => `
+      <tr>
+        <td class="cell-strong">${escapeHtml(o.order_number)}</td>
+        <td>${dt(o.date)}</td>
+        <td>\u20B1${o.delivery_fee.toLocaleString()}</td>
+        <td class="cell-strong">\u20B1${o.rider_earnings.toLocaleString()}</td>
+      </tr>`).join("") : `<tr><td colspan="4"><div class="empty-state"><span class="material-symbols-rounded">two_wheeler</span>No orders yet for this rider.</div></td></tr>`;
   } catch (e) { showToast(e.message, true); }
 }
 </script>
