@@ -1105,6 +1105,10 @@ select.filter:focus{
               <option value="profit-loss">Profit &amp; Loss Statement</option>
               <option value="merchant-payables">Merchant Payables Report</option>
               <option value="rider-payables">Rider Payables Report</option>
+              <option value="daily-sales">Daily Sales Report</option>
+              <option value="daily-transactions">Daily Transaction Report</option>
+              <option value="monthly-revenue">Monthly Revenue Report</option>
+              <option value="monthly-expense">Monthly Expense Report</option>
             </select>
             <input type="date" id="acct-report-date-from" class="input" style="width:auto">
             <input type="date" id="acct-report-date-to" class="input" style="width:auto">
@@ -3354,6 +3358,42 @@ async function generateAccountingReport() {
           </tbody>
           <tbody>
             <tr class="report-total-row" style="font-size:15px"><td>NET INCOME</td><td>\u20B1${d.net_income.toLocaleString()}</td></tr>
+          </tbody>
+        </table>`;
+    } else if (type === "daily-sales") {
+      const d = await api(`/api/admin/accounting/reports/daily-sales?date=${from || new Date().toISOString().slice(0,10)}`);
+      output.innerHTML = reportHeader("Daily Sales Report", d.date, d.date) + `
+        <table>
+          <thead><tr><th>Order Type</th><th>Count</th><th>Subtotal</th><th>Delivery Fee</th><th>Service Fee</th><th>Total</th></tr></thead>
+          <tbody>
+            ${d.by_type.map(t => `<tr><td>${escapeHtml(t.order_type)}</td><td>${t.count}</td><td>\u20B1${t.subtotal.toLocaleString()}</td><td>\u20B1${t.delivery_fee.toLocaleString()}</td><td>\u20B1${t.service_fee.toLocaleString()}</td><td>\u20B1${t.total.toLocaleString()}</td></tr>`).join("")}
+            <tr class="report-total-row"><td colspan="5">Total (${d.total_orders} orders)</td><td>\u20B1${d.total_sales.toLocaleString()}</td></tr>
+          </tbody>
+        </table>`;
+    } else if (type === "daily-transactions") {
+      const day = from || new Date().toISOString().slice(0,10);
+      const d = await api(`/api/admin/accounting/journal?date_from=${day}&date_to=${day}&per_page=200`);
+      output.innerHTML = reportHeader("Daily Transaction Report", day, day) + `
+        <table>
+          <thead><tr><th>Reference</th><th>Description</th><th>Type</th><th>Debit</th><th>Credit</th></tr></thead>
+          <tbody>
+            ${d.items.map(e => `<tr><td>${escapeHtml(e.reference_number)}</td><td>${escapeHtml(e.description || "")}</td><td>${escapeHtml(e.transaction_type || "")}</td><td>\u20B1${e.total_debit.toLocaleString()}</td><td>\u20B1${e.total_credit.toLocaleString()}</td></tr>`).join("")}
+          </tbody>
+        </table>`;
+    } else if (type === "monthly-revenue" || type === "monthly-expense") {
+      const params = new URLSearchParams();
+      if (from) params.set("date_from", from); else params.set("date_from", new Date().toISOString().slice(0,8) + "01");
+      if (to) params.set("date_to", to);
+      const d = await api(`/api/admin/accounting/reports/profit-loss?${params}`);
+      const isRevenue = type === "monthly-revenue";
+      const lines = isRevenue ? d.revenue_lines : d.expense_lines;
+      const total = isRevenue ? d.total_revenue : d.total_expenses;
+      output.innerHTML = reportHeader(isRevenue ? "Monthly Revenue Report" : "Monthly Expense Report", d.date_from, d.date_to) + `
+        <table>
+          <thead><tr><th>Account</th><th>Amount</th></tr></thead>
+          <tbody>
+            ${lines.map(l => `<tr><td>${escapeHtml(l.name)}</td><td>\u20B1${l.amount.toLocaleString()}</td></tr>`).join("")}
+            <tr class="report-total-row"><td>Total</td><td>\u20B1${total.toLocaleString()}</td></tr>
           </tbody>
         </table>`;
     } else {
