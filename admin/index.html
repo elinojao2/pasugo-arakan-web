@@ -996,6 +996,7 @@ select.filter:focus{
           <button class="acct-tab-btn" id="acct-tab-btn-ledger" onclick="switchAccountingTab('ledger')">General Ledger</button>
           <button class="acct-tab-btn" id="acct-tab-btn-merchant-ledger" onclick="switchAccountingTab('merchant-ledger')">Merchant Ledger</button>
           <button class="acct-tab-btn" id="acct-tab-btn-rider-ledger" onclick="switchAccountingTab('rider-ledger')">Rider Ledger</button>
+          <button class="acct-tab-btn" id="acct-tab-btn-cashbook" onclick="switchAccountingTab('cashbook')">Cash / GCash Book</button>
         </div>
         <div id="acct-tab-dashboard">
           <div class="grid cols-4" id="accounting-stats"></div>
@@ -1057,6 +1058,24 @@ select.filter:focus{
           <div class="table-wrap"><table>
             <thead><tr><th>Order #</th><th>Date</th><th>Delivery Fee</th><th>Rider Earnings</th></tr></thead>
             <tbody id="acct-rider-ledger-tbody"></tbody>
+          </table></div>
+        </div>
+        <div id="acct-tab-cashbook" style="display:none">
+          <div class="section-title"><h2>Cash / GCash Book</h2></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+            <select id="acct-cashbook-account" class="input" style="width:auto" onchange="loadCashbook()">
+              <option value="1010">GCash</option>
+              <option value="1000">Cash</option>
+              <option value="1020">Bank</option>
+            </select>
+            <input type="date" id="acct-cashbook-date-from" class="input" style="width:auto">
+            <input type="date" id="acct-cashbook-date-to" class="input" style="width:auto">
+            <button class="btn btn-ghost btn-sm" onclick="loadCashbook()">Filter</button>
+          </div>
+          <div id="acct-cashbook-opening" style="font-size:12.5px;color:var(--gray-600);margin-bottom:10px"></div>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Date</th><th>Reference</th><th>Description</th><th>Money In</th><th>Money Out</th><th>Running Balance</th><th>Source/Destination</th></tr></thead>
+            <tbody id="acct-cashbook-tbody"></tbody>
           </table></div>
         </div>
       </div>
@@ -3021,7 +3040,7 @@ window.addEventListener('load', updateModernMenuButton);
 let ACCT_ACTIVE_TAB = "dashboard";
 function switchAccountingTab(tab) {
   ACCT_ACTIVE_TAB = tab;
-  ["dashboard", "journal", "accounts", "expenses", "ledger", "merchant-ledger", "rider-ledger"].forEach(t => {
+  ["dashboard", "journal", "accounts", "expenses", "ledger", "merchant-ledger", "rider-ledger", "cashbook"].forEach(t => {
     document.getElementById(`acct-tab-${t}`).style.display = t === tab ? "" : "none";
     document.getElementById(`acct-tab-btn-${t}`).classList.toggle("active", t === tab);
   });
@@ -3031,6 +3050,7 @@ function switchAccountingTab(tab) {
   if (tab === "ledger") loadLedgerAccountOptions();
   if (tab === "merchant-ledger") loadMerchantPickerOptions();
   if (tab === "rider-ledger") loadRiderPickerOptions();
+  if (tab === "cashbook") loadCashbook();
 }
 async function loadAccountingDashboard() {
   switchAccountingTab(ACCT_ACTIVE_TAB);
@@ -3230,6 +3250,31 @@ async function loadRiderLedger() {
         <td>\u20B1${o.delivery_fee.toLocaleString()}</td>
         <td class="cell-strong">\u20B1${o.rider_earnings.toLocaleString()}</td>
       </tr>`).join("") : `<tr><td colspan="4"><div class="empty-state"><span class="material-symbols-rounded">two_wheeler</span>No orders yet for this rider.</div></td></tr>`;
+  } catch (e) { showToast(e.message, true); }
+}
+async function loadCashbook() {
+  const accountCode = document.getElementById("acct-cashbook-account").value;
+  const tbody = document.getElementById("acct-cashbook-tbody");
+  const openingEl = document.getElementById("acct-cashbook-opening");
+  tbody.innerHTML = skeletonRows(6);
+  try {
+    const params = new URLSearchParams({ account_code: accountCode });
+    const from = document.getElementById("acct-cashbook-date-from").value;
+    const to = document.getElementById("acct-cashbook-date-to").value;
+    if (from) params.set("date_from", from);
+    if (to) params.set("date_to", to);
+    const data = await api(`/api/admin/accounting/cashbook?${params}`);
+    openingEl.textContent = `Opening balance: \u20B1${data.opening_balance.toLocaleString()}`;
+    tbody.innerHTML = data.lines.length ? data.lines.map(l => `
+      <tr>
+        <td>${dt(l.date)}</td>
+        <td class="cell-strong">${escapeHtml(l.reference_number)}</td>
+        <td>${escapeHtml(l.description || "")}</td>
+        <td>${l.money_in ? '\u20B1' + l.money_in.toLocaleString() : ""}</td>
+        <td>${l.money_out ? '\u20B1' + l.money_out.toLocaleString() : ""}</td>
+        <td class="cell-strong">\u20B1${l.running_balance.toLocaleString()}</td>
+        <td>${escapeHtml(l.source_destination || "")}</td>
+      </tr>`).join("") : `<tr><td colspan="7"><div class="empty-state"><span class="material-symbols-rounded">payments</span>No activity for this account in the selected range.</div></td></tr>`;
   } catch (e) { showToast(e.message, true); }
 }
 </script>
