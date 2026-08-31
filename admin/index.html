@@ -698,6 +698,25 @@ select.filter:focus{
   .orders-trend-labels{padding:0 3px;font-size:9px;}
 }
 
+  .printable-report{background:#fff;padding:24px;border-radius:12px;border:1px solid var(--gray-200);}
+  .printable-report table{width:100%;border-collapse:collapse;margin-top:14px;}
+  .printable-report th, .printable-report td{padding:8px 10px;text-align:left;border-bottom:1px solid var(--gray-200);font-size:13px;}
+  .printable-report th{font-weight:700;color:var(--gray-600);font-size:11.5px;text-transform:uppercase;}
+  .printable-report .report-total-row td{font-weight:800;border-top:2px solid var(--ink-2);border-bottom:none;}
+  .printable-report .report-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;padding-bottom:14px;border-bottom:2px solid var(--ink-2);}
+  .printable-report .report-meta{font-size:11.5px;color:var(--gray-600);margin-top:4px;}
+  @media print{
+    .sidebar, .topbar, .no-print, #sos-banner-stack{display:none !important;}
+    .main{padding:0 !important;}
+    .content{padding:0 !important;}
+    .view{display:none !important;}
+    #view-accounting{display:block !important;}
+    #view-accounting > div:not(#acct-tab-reports){display:none !important;}
+    #acct-tab-reports{display:block !important;}
+    .printable-report{border:none;padding:0;}
+    body{background:#fff;}
+    @page{size:A4;margin:16mm;}
+  }
 </style>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyCHRnRqAWrk4giJEaXw7zd8jyYwgFFLIKA"></script>
 </head>
@@ -997,6 +1016,7 @@ select.filter:focus{
           <button class="acct-tab-btn" id="acct-tab-btn-merchant-ledger" onclick="switchAccountingTab('merchant-ledger')">Merchant Ledger</button>
           <button class="acct-tab-btn" id="acct-tab-btn-rider-ledger" onclick="switchAccountingTab('rider-ledger')">Rider Ledger</button>
           <button class="acct-tab-btn" id="acct-tab-btn-cashbook" onclick="switchAccountingTab('cashbook')">Cash / GCash Book</button>
+          <button class="acct-tab-btn" id="acct-tab-btn-reports" onclick="switchAccountingTab('reports')">Reports</button>
         </div>
         <div id="acct-tab-dashboard">
           <div class="grid cols-4" id="accounting-stats"></div>
@@ -1077,6 +1097,21 @@ select.filter:focus{
             <thead><tr><th>Date</th><th>Reference</th><th>Description</th><th>Money In</th><th>Money Out</th><th>Running Balance</th><th>Source/Destination</th></tr></thead>
             <tbody id="acct-cashbook-tbody"></tbody>
           </table></div>
+        </div>
+        <div id="acct-tab-reports" style="display:none">
+          <div class="section-title"><h2>Reports</h2></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px" class="no-print">
+            <select id="acct-report-type" class="input" style="width:auto">
+              <option value="profit-loss">Profit &amp; Loss Statement</option>
+              <option value="merchant-payables">Merchant Payables Report</option>
+              <option value="rider-payables">Rider Payables Report</option>
+            </select>
+            <input type="date" id="acct-report-date-from" class="input" style="width:auto">
+            <input type="date" id="acct-report-date-to" class="input" style="width:auto">
+            <button class="btn btn-primary btn-sm" onclick="generateAccountingReport()">Generate</button>
+            <button class="btn btn-ghost btn-sm" onclick="window.print()"><span class="material-symbols-rounded" style="font-size:15px">print</span> Print</button>
+          </div>
+          <div id="acct-report-output" class="printable-report"></div>
         </div>
       </div>
       <div class="view" id="view-settings">
@@ -3040,7 +3075,7 @@ window.addEventListener('load', updateModernMenuButton);
 let ACCT_ACTIVE_TAB = "dashboard";
 function switchAccountingTab(tab) {
   ACCT_ACTIVE_TAB = tab;
-  ["dashboard", "journal", "accounts", "expenses", "ledger", "merchant-ledger", "rider-ledger", "cashbook"].forEach(t => {
+  ["dashboard", "journal", "accounts", "expenses", "ledger", "merchant-ledger", "rider-ledger", "cashbook", "reports"].forEach(t => {
     document.getElementById(`acct-tab-${t}`).style.display = t === tab ? "" : "none";
     document.getElementById(`acct-tab-btn-${t}`).classList.toggle("active", t === tab);
   });
@@ -3275,6 +3310,65 @@ async function loadCashbook() {
         <td class="cell-strong">\u20B1${l.running_balance.toLocaleString()}</td>
         <td>${escapeHtml(l.source_destination || "")}</td>
       </tr>`).join("") : `<tr><td colspan="7"><div class="empty-state"><span class="material-symbols-rounded">payments</span>No activity for this account in the selected range.</div></td></tr>`;
+  } catch (e) { showToast(e.message, true); }
+}
+function reportHeader(title, dateFrom, dateTo) {
+  const now = new Date();
+  return `
+    <div class="report-header">
+      <div>
+        <div style="font-weight:800;font-size:16px">PASUGO ARAKAN</div>
+        <div style="font-size:12px;color:var(--gray-600)">Hyperlocal Delivery Platform - Arakan, North Cotabato</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:700;font-size:14px">${title}</div>
+        <div class="report-meta">${dateFrom && dateTo ? `Period: ${dateFrom} to ${dateTo}` : ""}</div>
+        <div class="report-meta">Generated: ${now.toLocaleString()}</div>
+        <div class="report-meta">By: ${escapeHtml(ME.full_name || "Administrator")}</div>
+      </div>
+    </div>`;
+}
+async function generateAccountingReport() {
+  const type = document.getElementById("acct-report-type").value;
+  const from = document.getElementById("acct-report-date-from").value;
+  const to = document.getElementById("acct-report-date-to").value;
+  const output = document.getElementById("acct-report-output");
+  output.innerHTML = statSkeletons(1);
+  try {
+    if (type === "profit-loss") {
+      const params = new URLSearchParams();
+      if (from) params.set("date_from", from);
+      if (to) params.set("date_to", to);
+      const d = await api(`/api/admin/accounting/reports/profit-loss?${params}`);
+      output.innerHTML = reportHeader("Profit &amp; Loss Statement", d.date_from, d.date_to) + `
+        <table>
+          <thead><tr><th colspan="2">Revenue</th></tr></thead>
+          <tbody>
+            ${d.revenue_lines.map(l => `<tr><td>${escapeHtml(l.name)}</td><td>\u20B1${l.amount.toLocaleString()}</td></tr>`).join("")}
+            <tr class="report-total-row"><td>Total Revenue</td><td>\u20B1${d.total_revenue.toLocaleString()}</td></tr>
+          </tbody>
+          <thead><tr><th colspan="2" style="padding-top:18px">Expenses</th></tr></thead>
+          <tbody>
+            ${d.expense_lines.map(l => `<tr><td>${escapeHtml(l.name)}</td><td>\u20B1${l.amount.toLocaleString()}</td></tr>`).join("")}
+            <tr class="report-total-row"><td>Total Expenses</td><td>\u20B1${d.total_expenses.toLocaleString()}</td></tr>
+          </tbody>
+          <tbody>
+            <tr class="report-total-row" style="font-size:15px"><td>NET INCOME</td><td>\u20B1${d.net_income.toLocaleString()}</td></tr>
+          </tbody>
+        </table>`;
+    } else {
+      const ownerType = type === "merchant-payables" ? "merchant" : "rider";
+      const d = await api(`/api/admin/accounting/reports/payables?type=${ownerType}`);
+      const title = ownerType === "merchant" ? "Merchant Payables Report" : "Rider Payables Report";
+      output.innerHTML = reportHeader(title, null, null) + `
+        <table>
+          <thead><tr><th>${ownerType === "merchant" ? "Merchant" : "Rider"}</th><th>Amount Payable</th></tr></thead>
+          <tbody>
+            ${d.rows.map(r => `<tr><td>${escapeHtml(r.name)}</td><td>\u20B1${r.balance.toLocaleString()}</td></tr>`).join("")}
+            <tr class="report-total-row"><td>Total Payable</td><td>\u20B1${d.total.toLocaleString()}</td></tr>
+          </tbody>
+        </table>`;
+    }
   } catch (e) { showToast(e.message, true); }
 }
 </script>
