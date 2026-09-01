@@ -766,6 +766,7 @@ select.filter:focus{
       <div class="nav-item" data-view="earnings"><span class="material-symbols-rounded">trending_up</span>Earnings</div>
             <div class="nav-item" data-view="team"><span class="material-symbols-rounded">group_add</span>Team</div>
       <div class="nav-item" data-view="service-requests"><span class="material-symbols-rounded">pending_actions</span>Service Requests<span class="badge" id="badge-service-requests" style="display:none">0</span></div>
+      <div class="nav-item" data-view="refunds"><span class="material-symbols-rounded">currency_exchange</span>Refunds<span class="badge" id="badge-refunds" style="display:none">0</span></div>
     </div>
   </aside>
 
@@ -1001,6 +1002,11 @@ select.filter:focus{
       <div class="view" id="view-service-requests">
         <div id="service-requests-list"></div>
       </div>
+      <!-- ---------------- REFUNDS ---------------- -->
+      <div class="view" id="view-refunds">
+        <div class="section-title"><h2>Refunds pending confirmation</h2></div>
+        <div id="refunds-pending-list" class="grid cols-3"></div>
+      </div>
 
       <!-- ---------------- SUPPORT ---------------- -->
 
@@ -1231,6 +1237,18 @@ select.filter:focus{
   </div>
 </div>
 
+<div class="modal-backdrop" id="modal-confirm-refund">
+  <div class="modal">
+    <h3 style="margin-top:0">Confirm Refund Sent</h3>
+    <p style="font-size:12.5px;color:var(--gray-600);margin:8px 0 14px" id="refund-modal-order-info"></p>
+    <div class="field"><label>Refund Amount (\u20B1)</label><input type="number" id="refund-amount-input" step="0.01" min="0"></div>
+    <p style="font-size:11.5px;color:var(--gray-600);margin-top:6px">Only confirm this once you have actually sent the money back via GCash.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-confirm-refund')">Cancel</button>
+      <button class="btn btn-primary btn-sm" onclick="confirmRefund()">Confirm Refund Sent</button>
+    </div>
+  </div>
+</div>
 <div class="modal-backdrop" id="modal-add-expense">
   <div class="modal">
     <h3 style="margin-top:0">Add Expense</h3>
@@ -1534,7 +1552,7 @@ async function doLogin() {
 // Promo Codes, Users, Categories, Support, Withdrawals, and the older
 // live-map view) are hidden entirely rather than just made read-only,
 // so a worker is not confused by options they cannot use anyway.
-const WORKER_ALLOWED_VIEWS = new Set(["overview", "orders", "live-riders", "riders", "merchants", "service-requests"]);
+const WORKER_ALLOWED_VIEWS = new Set(["overview", "orders", "live-riders", "riders", "merchants", "service-requests", "refunds"]);
 function applyWorkerNavRestrictions() {
   if (ME.is_super_admin !== false) return;
   document.querySelectorAll(".nav-item[data-view]").forEach(el => {
@@ -1674,6 +1692,7 @@ const loaders = {
   earnings: loadEarnings,
     team: loadTeam,
   "service-requests": loadServiceRequests,
+  refunds: loadRefundsPending,
   support: loadTickets,
   settings: loadSettings,
   backups: loadBackups,
@@ -1694,6 +1713,7 @@ const titles = {
   earnings: ["Earnings", "Platform revenue — today, this month, and all-time"],
     team: ["Team", "Manage who has access to this admin dashboard"],
   "service-requests": ["Service Requests", "Pasabuy, Courier, and Pa Angkas requests awaiting review"],
+  refunds: ["Refunds", "Confirm manually-sent GCash refunds"],
   support: ["Support Tickets", "Complaints, refunds, and lost items"],
   settings: ["Settings", "Fees, commissions, and platform defaults"],
   backups: ["Backups", "Database snapshots and disaster recovery"],
@@ -3409,6 +3429,46 @@ async function generateAccountingReport() {
           </tbody>
         </table>`;
     }
+  } catch (e) { showToast(e.message, true); }
+}
+let REFUND_TARGET_ORDER_ID = null;
+async function loadRefundsPending() {
+  const grid = document.getElementById("refunds-pending-list");
+  grid.innerHTML = statSkeletons(3);
+  try {
+    const refunds = await api("/api/admin/orders/refunds-pending");
+    setBadge("badge-refunds", refunds.length);
+    grid.innerHTML = refunds.length ? refunds.map(r => `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div><div class="cell-strong" style="font-size:14.5px">${escapeHtml(r.order_number)}</div>
+          <div class="cell-sub">${escapeHtml(r.customer_name || "")}</div></div>
+          ${chip("cancelled")}
+        </div>
+        <div style="margin:12px 0;font-size:12.5px;color:var(--gray-600)">
+          Order total: \u20B1${r.amount.toLocaleString()} - ${escapeHtml(r.payment_method)}<br>
+          Cancelled: ${dt(r.cancelled_at)}
+        </div>
+        <div class="row-actions">
+          <button class="btn btn-primary btn-sm" onclick="openRefundModal(${r.order_id}, '${escapeHtml(r.order_number)}', ${r.amount})">Confirm Refund Sent</button>
+        </div>
+      </div>`).join("") : emptyCard("check_circle", "No refunds waiting for confirmation.");
+  } catch (e) { showToast(e.message, true); }
+}
+function openRefundModal(orderId, orderNumber, amount) {
+  REFUND_TARGET_ORDER_ID = orderId;
+  document.getElementById("refund-modal-order-info").textContent = `Order ${orderNumber} - original amount \u20B1${amount.toLocaleString()}`;
+  document.getElementById("refund-amount-input").value = amount;
+  openModal("modal-confirm-refund");
+}
+async function confirmRefund() {
+  const amount = document.getElementById("refund-amount-input").value;
+  if (!amount || parseFloat(amount) <= 0) { showToast("Enter a valid amount", true); return; }
+  try {
+    await api(`/api/admin/orders/${REFUND_TARGET_ORDER_ID}/mark-refunded`, { method: "POST", body: JSON.stringify({ refund_amount: amount }) });
+    closeModal("modal-confirm-refund");
+    showToast("Refund confirmed");
+    loadRefundsPending();
   } catch (e) { showToast(e.message, true); }
 }
 </script>
