@@ -1824,7 +1824,7 @@ function chip(status) {
   return `<span class="chip ${status}"><span class="pulse"></span>${label}</span>`;
 }
 function money(n) { return "₱" + Number(n || 0).toLocaleString("en-PH", { minimumFractionDigits: 2 }); }
-function dt(iso) { if (!iso) return "—"; const d = new Date(iso); return d.toLocaleDateString() + " " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+function dt(iso) { if (!iso) return "\u2014"; const isoUtc = (iso.endsWith("Z") || iso.includes("+")) ? iso : iso + "Z"; const d = new Date(isoUtc); return d.toLocaleDateString("en-PH", { timeZone: "Asia/Manila" }) + " " + d.toLocaleTimeString("en-PH", { timeZone: "Asia/Manila", hour: "2-digit", minute: "2-digit" }); }
 function skeletonRows(cols, rows = 4) {
   return Array.from({ length: rows }).map(() =>
     `<tr>${Array.from({ length: cols }).map(() => `<td><div class="skeleton" style="height:14px;width:80%"></div></td>`).join("")}</tr>`
