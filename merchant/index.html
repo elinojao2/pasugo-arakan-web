@@ -1290,6 +1290,7 @@ async function openOrderDetail(id) {
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray-600);padding:2px 0"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray-600);padding:2px 0"><span>Delivery fee</span><span>${money(o.delivery_fee)}</span></div>
       <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray-600);padding:2px 0"><span>Service fee</span><span>${money(o.service_fee)}</span></div>
+      ${o.discount_amount > 0 ? `<div style="display:flex;justify-content:space-between;font-size:12px;color:${o.promo_code && o.promo_code.is_merchant_promo ? 'var(--red)' : 'var(--green-dark)'};padding:2px 0"><span>${o.promo_code && o.promo_code.is_merchant_promo ? 'Your promo discount (' + escapeHtml(o.promo_code.code) + ') - deducted from your payout' : 'Platform promo discount (absorbed by Pasugo)'}</span><span>-${money(o.discount_amount)}</span></div>` : ""}
       <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:800;padding:8px 0;border-top:1px solid var(--gray-200);margin-top:6px"><span>Total</span><span>${money(o.total_amount)}</span></div>
     `;
 
