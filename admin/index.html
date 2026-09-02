@@ -2365,6 +2365,12 @@ function openMerchantDetail(id) {
       <div class="mini-stat"><div class="mini-stat-label">Net earnings</div><div class="mini-stat-value" style="color:var(--green-dark)">${money(m.total_earnings)}</div></div>
     </div>
     <div class="mini-stat" style="margin-top:10px"><div class="mini-stat-label">Current wallet balance (withdrawable)</div><div class="mini-stat-value">${money(m.wallet_balance)}</div></div>
+    <div class="section-title" style="margin-top:20px"><h2 style="font-size:14px">Today</h2></div>
+    <div class="grid cols-3">
+      <div class="mini-stat"><div class="mini-stat-label">Orders today</div><div class="mini-stat-value">${m.today_orders}</div></div>
+      <div class="mini-stat"><div class="mini-stat-label">Gross revenue today</div><div class="mini-stat-value">${money(m.today_gross_revenue)}</div></div>
+      <div class="mini-stat"><div class="mini-stat-label">Earnings today</div><div class="mini-stat-value" style="color:var(--green-dark)">${money(m.today_earnings)}</div></div>
+    </div>
     ${m.rejection_reason ? `<div class="section-title" style="margin-top:20px"><h2 style="font-size:14px;color:var(--red)">Rejection reason</h2></div><p class="cell-sub">${escapeHtml(m.rejection_reason)}</p>` : ""}
   `;
   openModal("modal-merchant-detail");
