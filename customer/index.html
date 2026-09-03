@@ -337,13 +337,18 @@
       <div class="service-grid">
         <div class="service-card" data-service="pasabuy" onclick="openBooking('pasabuy')">
           <span class="material-symbols-rounded">shopping_bag</span>
-          <div class="label">Pasabuy</div>
+          <div class="label">Pabili</div>
           <div class="sub">Buy anything</div>
         </div>
-        <div class="service-card" data-service="courier" onclick="openBooking('courier')">
-          <span class="material-symbols-rounded">local_shipping</span>
-          <div class="label">Courier</div>
-          <div class="sub">Send a package</div>
+        <div class="service-card" data-service="bills_payment" onclick="openBooking('bills_payment')">
+          <span class="material-symbols-rounded">receipt_long</span>
+          <div class="label">Bills Payment</div>
+          <div class="sub">Pay a bill for you</div>
+        </div>
+        <div class="service-card" data-service="errand" onclick="openBooking('errand')">
+          <span class="material-symbols-rounded">directions_run</span>
+          <div class="label">Errand</div>
+          <div class="sub">Run a task for you</div>
         </div>
         <div class="service-card" data-service="pa_angkas" onclick="openBooking('pa_angkas')">
           <span class="material-symbols-rounded">two_wheeler</span>
@@ -459,6 +464,24 @@
             <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Special instructions</div>
             <textarea id="bk-instructions" rows="2" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:inherit"></textarea>
           </div>
+          <!-- Bills Payment fields -->
+          <div class="card" id="bk-bills_payment-fields" style="display:none">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:10px">Biller name</div>
+            <input id="bk-biller-name" placeholder="e.g. Meralco, PLDT, Maynilad" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:14px">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Account number</div>
+            <input id="bk-account-number" placeholder="Account number on the bill" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:14px">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Bill amount (&#8369;)</div>
+            <input id="bk-bill-amount" type="number" placeholder="e.g. 1500" oninput="fetchBookingQuote()" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;margin-bottom:14px">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Special instructions</div>
+            <textarea id="bk-bills-instructions" rows="2" placeholder="e.g. Ask for a printed receipt." style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:inherit"></textarea>
+          </div>
+          <!-- Errand fields -->
+          <div class="card" id="bk-errand-fields" style="display:none">
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:10px">What do you need done?</div>
+            <textarea id="bk-errand-description" rows="3" placeholder="Describe the errand in detail - where to go, what to get or do, and any other instructions." style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px;font-family:inherit;margin-bottom:14px"></textarea>
+            <div style="font-weight:700;font-size:13.5px;margin-bottom:8px">Budget, if any (&#8369;)</div>
+            <input id="bk-errand-budget" type="number" placeholder="Leave blank if the errand does not involve spending money" oninput="fetchBookingQuote()" style="width:100%;padding:10px;border:1.5px solid var(--gray-200);border-radius:10px">
+          </div>
 
           <!-- Courier fields -->
           <div class="card" id="bk-courier-fields" style="display:none">
@@ -523,7 +546,7 @@
           <div class="card">
             <div style="font-weight:700;font-size:13.5px;margin-bottom:10px">Summary</div>
             <div id="bk-summary-extra"></div>
-            <div class="summary-row"><span>Delivery fee</span><span id="bk-delivery">—</span></div>
+            <div class="summary-row"><span id="bk-delivery-label">Delivery fee</span><span id="bk-delivery">—</span></div>
             <div class="summary-row"><span>Service fee</span><span id="bk-service">—</span></div>
             <div class="summary-row total"><span>Total</span><span id="bk-total">—</span></div>
             <button class="btn btn-primary" onclick="submitBooking()" style="margin-top:14px" id="bk-submit-btn">Submit</button>
@@ -953,7 +976,7 @@ async function checkMaintenanceMode() {
 }
 
 function applyServiceAvailability(services) {
-  const bookingTypes = { pasabuy: "pasabuy", courier: "courier", pa_angkas: "pa_angkas" };
+  const bookingTypes = { pasabuy: "pasabuy", bills_payment: "bills_payment", errand: "errand", pa_angkas: "pa_angkas" };
   Object.entries(bookingTypes).forEach(([service, bookingType]) => {
     const card = document.querySelector(`.service-card[data-service="${service}"]`);
     if (!card) return;
@@ -1537,30 +1560,42 @@ async function openBooking(type) {
   BK_QUOTE = null;
 
   document.getElementById("bk-pasabuy-fields").style.display = type === "pasabuy" ? "block" : "none";
+  document.getElementById("bk-bills_payment-fields").style.display = type === "bills_payment" ? "block" : "none";
+  document.getElementById("bk-errand-fields").style.display = type === "errand" ? "block" : "none";
   document.getElementById("bk-courier-fields").style.display = type === "courier" ? "block" : "none";
   document.getElementById("bk-angkas-fields").style.display = type === "pa_angkas" ? "block" : "none";
-
-  const titles = { pasabuy: "Pasabuy — Buy Anything", courier: "Book a courier", pa_angkas: "Pa Angkas" };
+  const isPasugo = type === "pasabuy" || type === "bills_payment" || type === "errand";
+  document.getElementById("bk-delivery-label").textContent = isPasugo ? "Concierge Fee (Bayad sa Pag-asikaso)" : "Delivery fee";
+  const titles = { pasabuy: "Pabili - Buy Anything", bills_payment: "Bills Payment", errand: "Errand", courier: "Book a courier", pa_angkas: "Pa Angkas" };
   document.getElementById("booking-title").textContent = titles[type];
   document.getElementById("bk-dropoff-label").textContent = type === "pa_angkas" ? "Drop-off (your destination)" : "Deliver to";
   const pickupLabels = {
-    pasabuy: "Store location (optional — helps your rider find it)",
+    pasabuy: "Store location (required - needed to calculate the fee accurately)",
+    bills_payment: "Payment center location (required - needed to calculate the fee accurately)",
+    errand: "Errand location (required - needed to calculate the fee accurately)",
     courier: "Pickup address",
     pa_angkas: "Where should we pick you up?",
   };
   document.getElementById("bk-pickup-label").textContent = pickupLabels[type];
   document.getElementById("bk-pickup-status").innerHTML = `<span class="material-symbols-rounded" style="font-size:16px;color:var(--green-dark)">my_location</span> Location not set yet`;
   document.getElementById("bk-pickup-address").value = "";
-  document.getElementById("bk-delivery").textContent = "—";
-  document.getElementById("bk-service").textContent = "—";
-  document.getElementById("bk-total").textContent = "—";
+  document.getElementById("bk-delivery").textContent = "-";
+  document.getElementById("bk-service").textContent = "-";
+  document.getElementById("bk-total").textContent = "-";
   document.getElementById("bk-summary-extra").innerHTML = "";
-
   if (type === "pasabuy") {
     addItemRow();
     document.getElementById("bk-store-name").value = "";
     document.getElementById("bk-budget").value = "";
     document.getElementById("bk-instructions").value = "";
+  } else if (type === "bills_payment") {
+    document.getElementById("bk-biller-name").value = "";
+    document.getElementById("bk-account-number").value = "";
+    document.getElementById("bk-bill-amount").value = "";
+    document.getElementById("bk-bills-instructions").value = "";
+  } else if (type === "errand") {
+    document.getElementById("bk-errand-description").value = "";
+    document.getElementById("bk-errand-budget").value = "";
   } else if (type === "courier") {
     document.getElementById("bk-receiver-name").value = "";
     document.getElementById("bk-receiver-number").value = "";
@@ -1570,7 +1605,6 @@ async function openBooking(type) {
     document.getElementById("bk-passenger-count").textContent = "1";
     document.getElementById("bk-notes").value = "";
   }
-
   await ensureAddressesLoaded();
   BK_ADDRESS = ADDRESSES.find(a => a.is_default) || ADDRESSES[0] || null;
   renderBookingAddresses();
@@ -1665,19 +1699,31 @@ function selectBookingPayment(v) { BK_PAYMENT = v; renderBookingPayment(); }
 // ----- Live quote -----
 async function fetchBookingQuote() {
   if (!BK_ADDRESS) return;
+  const isPasugo = BK_TYPE === "pasabuy" || BK_TYPE === "bills_payment" || BK_TYPE === "errand";
+  if (isPasugo && BK_PICKUP_LAT == null) return;
   if (BK_TYPE === "pasabuy") {
     const budget = parseFloat(document.getElementById("bk-budget").value);
     if (!budget || budget <= 0) return;
-  } else if (BK_PICKUP_LAT == null) {
+  } else if (BK_TYPE === "bills_payment") {
+    const amount = parseFloat(document.getElementById("bk-bill-amount").value);
+    if (!amount || amount <= 0) return;
+  } else if (!isPasugo && BK_PICKUP_LAT == null) {
     return;
   }
-  document.getElementById("bk-delivery").textContent = "…";
-  document.getElementById("bk-service").textContent = "…";
+  document.getElementById("bk-delivery").textContent = "...";
+  document.getElementById("bk-service").textContent = "...";
   try {
     const body = { order_type: BK_TYPE, dropoff_address_id: BK_ADDRESS.id };
     if (BK_TYPE === "pasabuy") {
       body.pasabuy_budget = parseFloat(document.getElementById("bk-budget").value) || 0;
-      if (BK_PICKUP_LAT != null) { body.pasabuy_pickup_lat = BK_PICKUP_LAT; body.pasabuy_pickup_lng = BK_PICKUP_LNG; }
+      body.pasabuy_pickup_lat = BK_PICKUP_LAT; body.pasabuy_pickup_lng = BK_PICKUP_LNG;
+    } else if (BK_TYPE === "bills_payment") {
+      body.bills_payment_amount = parseFloat(document.getElementById("bk-bill-amount").value) || 0;
+      body.bills_payment_pickup_lat = BK_PICKUP_LAT; body.bills_payment_pickup_lng = BK_PICKUP_LNG;
+    } else if (BK_TYPE === "errand") {
+      const budget = parseFloat(document.getElementById("bk-errand-budget").value);
+      if (budget) body.errand_budget = budget;
+      body.errand_pickup_lat = BK_PICKUP_LAT; body.errand_pickup_lng = BK_PICKUP_LNG;
     } else if (BK_TYPE === "courier") {
       body.courier_pickup_lat = BK_PICKUP_LAT; body.courier_pickup_lng = BK_PICKUP_LNG;
     } else if (BK_TYPE === "pa_angkas") {
@@ -1688,12 +1734,12 @@ async function fetchBookingQuote() {
     document.getElementById("bk-delivery").textContent = money(quote.delivery_fee);
     document.getElementById("bk-service").textContent = money(quote.service_fee);
     document.getElementById("bk-total").textContent = money(quote.total_amount);
-    document.getElementById("bk-summary-extra").innerHTML = BK_TYPE === "pasabuy"
-      ? `<div class="summary-row"><span>Budget (items)</span><span>${money(quote.subtotal)}</span></div>`
+    document.getElementById("bk-summary-extra").innerHTML = (BK_TYPE === "pasabuy" || BK_TYPE === "bills_payment")
+      ? `<div class="summary-row"><span>${BK_TYPE === "pasabuy" ? "Budget (items)" : "Bill amount"}</span><span>${money(quote.subtotal)}</span></div>`
       : `<div class="summary-row"><span>Distance</span><span>${quote.distance_km} km</span></div>`;
   } catch (e) {
-    document.getElementById("bk-delivery").textContent = "—";
-    document.getElementById("bk-service").textContent = "—";
+    document.getElementById("bk-delivery").textContent = "-";
+    document.getElementById("bk-service").textContent = "-";
   }
 }
 
@@ -1704,7 +1750,6 @@ async function submitBooking() {
   btn.disabled = true;
   try {
     const body = { order_type: BK_TYPE, dropoff_address_id: BK_ADDRESS.id, payment_method: BK_PAYMENT };
-
     if (BK_TYPE === "pasabuy") {
       const storeName = document.getElementById("bk-store-name").value.trim();
       const budget = parseFloat(document.getElementById("bk-budget").value);
@@ -1712,13 +1757,35 @@ async function submitBooking() {
       if (!storeName) { showToast("Enter the store name.", true); btn.disabled = false; return; }
       if (!items.length) { showToast("Add at least one item to buy.", true); btn.disabled = false; return; }
       if (!budget || budget <= 0) { showToast("Enter a valid budget.", true); btn.disabled = false; return; }
+      if (BK_PICKUP_LAT == null) { showToast("Pin the store's location on the map.", true); btn.disabled = false; return; }
       body.pasabuy_store_name = storeName;
       body.pasabuy_items = items;
       body.pasabuy_budget = budget;
       const instructions = document.getElementById("bk-instructions").value.trim();
       if (instructions) body.pasabuy_special_instructions = instructions;
-      if (BK_PICKUP_LAT != null) { body.pasabuy_pickup_lat = BK_PICKUP_LAT; body.pasabuy_pickup_lng = BK_PICKUP_LNG; }
-
+      body.pasabuy_pickup_lat = BK_PICKUP_LAT; body.pasabuy_pickup_lng = BK_PICKUP_LNG;
+    } else if (BK_TYPE === "bills_payment") {
+      const billerName = document.getElementById("bk-biller-name").value.trim();
+      const accountNumber = document.getElementById("bk-account-number").value.trim();
+      const amount = parseFloat(document.getElementById("bk-bill-amount").value);
+      if (!billerName) { showToast("Enter the biller name.", true); btn.disabled = false; return; }
+      if (!accountNumber) { showToast("Enter the account number.", true); btn.disabled = false; return; }
+      if (!amount || amount <= 0) { showToast("Enter a valid bill amount.", true); btn.disabled = false; return; }
+      if (BK_PICKUP_LAT == null) { showToast("Pin the payment center's location on the map.", true); btn.disabled = false; return; }
+      body.bills_payment_biller_name = billerName;
+      body.bills_payment_account_number = accountNumber;
+      body.bills_payment_amount = amount;
+      const instructions = document.getElementById("bk-bills-instructions").value.trim();
+      if (instructions) body.bills_payment_special_instructions = instructions;
+      body.bills_payment_pickup_lat = BK_PICKUP_LAT; body.bills_payment_pickup_lng = BK_PICKUP_LNG;
+    } else if (BK_TYPE === "errand") {
+      const description = document.getElementById("bk-errand-description").value.trim();
+      if (!description) { showToast("Describe what you need done.", true); btn.disabled = false; return; }
+      if (BK_PICKUP_LAT == null) { showToast("Pin where the errand takes place on the map.", true); btn.disabled = false; return; }
+      body.errand_description = description;
+      const budget = parseFloat(document.getElementById("bk-errand-budget").value);
+      if (budget) body.errand_budget = budget;
+      body.errand_pickup_lat = BK_PICKUP_LAT; body.errand_pickup_lng = BK_PICKUP_LNG;
     } else if (BK_TYPE === "courier") {
       const pickupAddr = document.getElementById("bk-pickup-address").value.trim();
       const receiverName = document.getElementById("bk-receiver-name").value.trim();
@@ -1734,7 +1801,6 @@ async function submitBooking() {
       body.courier_package_size = document.getElementById("bk-package-size").value;
       const weight = parseFloat(document.getElementById("bk-weight").value);
       if (weight) body.courier_package_weight_kg = weight;
-
     } else if (BK_TYPE === "pa_angkas") {
       const pickupAddr = document.getElementById("bk-pickup-address").value.trim();
       if (!pickupAddr || BK_PICKUP_LAT == null) { showToast("Set your pickup point.", true); btn.disabled = false; return; }
@@ -1744,7 +1810,6 @@ async function submitBooking() {
       const notes = document.getElementById("bk-notes").value.trim();
       if (notes) body.angkas_notes = notes;
     }
-
     const order = await api("/api/orders", { method: "POST", body: JSON.stringify(body) });
     showToast("Booking submitted!");
     openTracking(order.id);
