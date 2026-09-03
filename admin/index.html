@@ -3058,14 +3058,48 @@ async function confirmRestoreBackup() {
   const errEl = document.getElementById("restore-error");
   if (confirmation !== "RESTORE") { errEl.textContent = 'You must type RESTORE exactly to confirm.'; return; }
   if (!password) { errEl.textContent = "Enter your admin password to confirm."; return; }
+  const btn = document.querySelector("#modal-restore-backup .btn-danger");
+  btn.disabled = true;
+  errEl.style.color = "#DC2626";
+  errEl.textContent = "Starting restore...";
   try {
     await api(`/api/admin/backups/${RESTORE_TARGET_FILENAME}/restore`, {
       method: "POST", body: JSON.stringify({ password, confirmation }),
     });
-    closeModal("modal-restore-backup");
-    showToast("Database restored successfully.");
-    loadBackups();
-  } catch (e) { errEl.textContent = e.message; }
+    errEl.style.color = "#059669";
+    errEl.textContent = "Restore in progress - this may take a minute. Please wait, do not close this window.";
+    await pollRestoreStatus(errEl, btn);
+  } catch (e) {
+    btn.disabled = false;
+    errEl.style.color = "#DC2626";
+    errEl.textContent = e.message;
+  }
+}
+async function pollRestoreStatus(errEl, btn) {
+  for (let i = 0; i < 60; i++) {
+    await new Promise(r => setTimeout(r, 5000));
+    try {
+      const status = await api("/api/admin/backups/restore-status");
+      if (status.status === "success") {
+        closeModal("modal-restore-backup");
+        showToast("Database restored successfully.");
+        loadBackups();
+        return;
+      }
+      if (status.status === "failed") {
+        btn.disabled = false;
+        errEl.style.color = "#DC2626";
+        errEl.textContent = status.message;
+        return;
+      }
+      // still "in_progress" - keep polling
+    } catch (e) {
+      // a transient hiccup while polling should not abort the whole wait - keep trying
+    }
+  }
+  btn.disabled = false;
+  errEl.style.color = "#DC2626";
+  errEl.textContent = "Restore is taking longer than expected. Check back in a few minutes.";
 }
 
 // ------------------------------------------------------------- Audit log --
