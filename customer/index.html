@@ -1668,11 +1668,17 @@ function useCurrentLocationForBooking() {
 // ----- Dropoff address -----
 function renderBookingAddresses() {
   const el = document.getElementById("bk-addresses");
-  el.innerHTML = ADDRESSES.length ? ADDRESSES.map(a => `
-    <div class="addr-option ${BK_ADDRESS && BK_ADDRESS.id === a.id ? 'selected' : ''}" onclick="selectBookingAddress(${a.id})">
-      <div style="font-weight:600;font-size:12.5px">${escapeHtml(a.label || 'Address')}</div>
-      <div style="font-size:11.5px;color:var(--gray-600)">${escapeHtml([a.street, a.barangay].filter(Boolean).join(', ') || 'No street details')}</div>
-    </div>`).join("") : `<div style="font-size:12px;color:var(--gray-600)">No saved addresses yet — add one below.</div>`;
+  // Only the most recently added address is shown here (not every
+  // saved one) - keeps this quick-select simple. "Add new address"
+  // below still lets the customer switch to a different one, which
+  // then becomes the new most-recent.
+  const mostRecent = ADDRESSES.length ? ADDRESSES.reduce((a, b) => (b.id > a.id ? b : a)) : null;
+  if (!BK_ADDRESS && mostRecent) BK_ADDRESS = mostRecent;
+  el.innerHTML = mostRecent ? `
+    <div class="addr-option selected">
+      <div style="font-weight:600;font-size:12.5px">${escapeHtml(mostRecent.label || 'Address')}</div>
+      <div style="font-size:11.5px;color:var(--gray-600)">${escapeHtml([mostRecent.street, mostRecent.barangay].filter(Boolean).join(', ') || 'No street details')}</div>
+    </div>` : `<div style="font-size:12px;color:var(--gray-600)">No saved addresses yet - add one below.</div>`;
 }
 function selectBookingAddress(id) {
   BK_ADDRESS = ADDRESSES.find(a => a.id === id);
