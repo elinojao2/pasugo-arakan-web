@@ -858,7 +858,7 @@ select.filter:focus{
           </select>
           <select class="filter" id="orders-type-filter" onchange="loadOrders()">
             <option value="">All types</option><option value="store_order">Store order</option>
-            <option value="pasabuy">Pasabuy</option><option value="courier">Courier</option>
+            <option value="pasabuy">Pabili</option><option value="bills_payment">Bills Payment</option><option value="errand">Errand</option><option value="courier">Courier</option>
             <option value="pa_angkas">Pa Angkas</option>
           </select>
         </div>
@@ -1172,9 +1172,23 @@ select.filter:focus{
             Store Delivery is always on since it's the core service.
           </p>
           <div class="settings-row">
-            <div><div class="lbl">Pasabuy</div><div class="desc">Buy-anything personal shopping requests</div></div>
+            <div><div class="lbl">Pabili</div><div class="desc">Buy-anything personal shopping requests</div></div>
             <label class="toggle-switch service-toggle">
               <input type="checkbox" id="service-toggle-pasabuy" onchange="toggleServiceAvailability('pasabuy')" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="settings-row">
+            <div><div class="lbl">Bills Payment</div><div class="desc">Pay a bill on the customer's behalf</div></div>
+            <label class="toggle-switch service-toggle">
+              <input type="checkbox" id="service-toggle-bills_payment" onchange="toggleServiceAvailability('bills_payment')" checked>
+              <span class="toggle-slider"></span>
+            </label>
+          </div>
+          <div class="settings-row">
+            <div><div class="lbl">Errand</div><div class="desc">Run an errand or task for the customer</div></div>
+            <label class="toggle-switch service-toggle">
+              <input type="checkbox" id="service-toggle-errand" onchange="toggleServiceAvailability('errand')" checked>
               <span class="toggle-slider"></span>
             </label>
           </div>
@@ -1721,7 +1735,7 @@ const titles = {
   withdrawals: ["Withdrawals", "Rider and merchant cash-out requests"],
   earnings: ["Earnings", "Platform revenue — today, this month, and all-time"],
     team: ["Team", "Manage who has access to this admin dashboard"],
-  "service-requests": ["Service Requests", "Pasabuy, Courier, and Pa Angkas requests awaiting review"],
+    "service-requests": ["Service Requests", "Pabili, Bills Payment, Errand, Courier, and Pa Angkas requests awaiting review"],
   refunds: ["Refunds", "Confirm manually-sent GCash refunds"],
   support: ["Support Tickets", "Complaints, refunds, and lost items"],
   settings: ["Settings", "Fees, commissions, and platform defaults"],
@@ -2061,12 +2075,26 @@ async function openAdminOrderDetail(id) {
           <span>${i.quantity}× ${escapeHtml(i.product_name)}</span><span class="cell-strong">${money(i.line_total)}</span>
         </div>`).join("");
     } else if (o.order_type === "pasabuy" && o.pasabuy) {
-      html += `<div class="section-title"><h2 style="font-size:13px">Pasabuy details</h2></div>
+      html += `<div class="section-title"><h2 style="font-size:13px">Pabili details</h2></div>
         <div class="mini-stat" style="margin-bottom:16px">
           <div><strong>Store:</strong> ${escapeHtml(o.pasabuy.store_name || "—")}</div>
           <div><strong>Budget:</strong> ${money(o.pasabuy.budget)}</div>
           ${o.pasabuy.actual_spent != null ? `<div><strong>Actual spent:</strong> ${money(o.pasabuy.actual_spent)}</div>` : ""}
           ${o.pasabuy.special_instructions ? `<div style="margin-top:6px" class="cell-sub">${escapeHtml(o.pasabuy.special_instructions)}</div>` : ""}
+        </div>`;
+    } else if (o.order_type === "bills_payment" && o.bills_payment) {
+      html += `<div class="section-title"><h2 style="font-size:13px">Bills Payment details</h2></div>
+        <div class="mini-stat" style="margin-bottom:16px">
+          <div><strong>Biller:</strong> ${escapeHtml(o.bills_payment.biller_name || "-")}</div>
+          <div><strong>Account #:</strong> ${escapeHtml(o.bills_payment.account_number || "-")}</div>
+          <div><strong>Amount to pay:</strong> ${money(o.bills_payment.amount)}</div>
+          ${o.bills_payment.special_instructions ? `<div style="margin-top:6px" class="cell-sub">${escapeHtml(o.bills_payment.special_instructions)}</div>` : ""}
+        </div>`;
+    } else if (o.order_type === "errand" && o.errand) {
+      html += `<div class="section-title"><h2 style="font-size:13px">Errand details</h2></div>
+        <div class="mini-stat" style="margin-bottom:16px">
+          <div>${escapeHtml(o.errand.description || "-")}</div>
+          ${o.errand.budget != null ? `<div style="margin-top:6px"><strong>Budget:</strong> ${money(o.errand.budget)}</div>` : ""}
         </div>`;
     } else if (o.order_type === "courier" && o.courier) {
       html += `<div class="section-title"><h2 style="font-size:13px">Courier details</h2></div>
@@ -2660,7 +2688,7 @@ async function loadServiceRequests() {
     const requests = (result.items || result).filter(o => o.order_type !== "store_order");
     setBadge("badge-service-requests", requests.length);
     if (!requests.length) {
-      el.innerHTML = `<div class="card empty-state"><span class="material-symbols-rounded">verified</span><div>No pending Pasabuy, Courier, or Pa Angkas requests.</div></div>`;
+      el.innerHTML = `<div class="card empty-state"><span class="material-symbols-rounded">verified</span><div>No pending Pabili, Bills Payment, Errand, Courier, or Pa Angkas requests.</div></div>`;
       return;
     }
     const detailed = await Promise.all(requests.map(o => api(`/api/orders/${o.id}`)));
@@ -2669,13 +2697,19 @@ async function loadServiceRequests() {
 }
 
 function renderServiceRequestCard(o) {
-  const typeLabels = { pasabuy: "Pasabuy", courier: "Courier", pa_angkas: "Pa Angkas" };
+  const typeLabels = { pasabuy: "Pabili", bills_payment: "Bills Payment", errand: "Errand", courier: "Courier", pa_angkas: "Pa Angkas" };
   const typeLabel = typeLabels[o.order_type] || o.order_type;
 
   let pickupLat, pickupLng, pickupAddr;
   if (o.order_type === "pasabuy" && o.pasabuy) {
     pickupLat = o.pasabuy.pickup_lat; pickupLng = o.pasabuy.pickup_lng;
     pickupAddr = o.pasabuy.store_name || "Pickup location";
+  } else if (o.order_type === "bills_payment" && o.bills_payment) {
+    pickupLat = o.bills_payment.pickup_lat; pickupLng = o.bills_payment.pickup_lng;
+    pickupAddr = o.bills_payment.biller_name || "Pickup location";
+  } else if (o.order_type === "errand" && o.errand) {
+    pickupLat = o.errand.pickup_lat; pickupLng = o.errand.pickup_lng;
+    pickupAddr = "Errand location";
   } else if (o.order_type === "courier" && o.courier) {
     pickupLat = o.courier.pickup_lat; pickupLng = o.courier.pickup_lng;
     pickupAddr = o.courier.pickup_address || "Pickup location";
@@ -2694,6 +2728,20 @@ function renderServiceRequestCard(o) {
         <strong>Budget:</strong> ${money(o.pasabuy.budget)}<br>
         ${(o.pasabuy.items || []).map(it => `${it.qty}x ${escapeHtml(it.item)}`).join(", ")}
         ${o.pasabuy.special_instructions ? `<br><em>${escapeHtml(o.pasabuy.special_instructions)}</em>` : ""}
+      </div>`;
+  } else if (o.order_type === "bills_payment" && o.bills_payment) {
+    detailBlock = `
+      <div style="margin:8px 0;font-size:12.5px;color:var(--ink-2)">
+        <strong>Biller:</strong> ${escapeHtml(o.bills_payment.biller_name || "-")}<br>
+        <strong>Account #:</strong> ${escapeHtml(o.bills_payment.account_number || "-")}<br>
+        <strong>Amount:</strong> ${money(o.bills_payment.amount)}
+        ${o.bills_payment.special_instructions ? `<br><em>${escapeHtml(o.bills_payment.special_instructions)}</em>` : ""}
+      </div>`;
+  } else if (o.order_type === "errand" && o.errand) {
+    detailBlock = `
+      <div style="margin:8px 0;font-size:12.5px;color:var(--ink-2)">
+        ${escapeHtml(o.errand.description || "-")}
+        ${o.errand.budget != null ? `<br><strong>Budget:</strong> ${money(o.errand.budget)}` : ""}
       </div>`;
   } else if (o.order_type === "courier" && o.courier) {
     detailBlock = `
@@ -2946,7 +2994,7 @@ async function loadSettings() {
     // (true) when the setting has never been explicitly saved, since a
     // brand-new service should be available unless an admin deliberately
     // turns it off.
-    ["pasabuy", "courier", "pa_angkas"].forEach(service => {
+    ["pasabuy", "bills_payment", "errand", "courier", "pa_angkas"].forEach(service => {
       const key = `service_available_${service}`;
       const isOn = s[key] === undefined || s[key] === true || s[key] === "true";
       document.getElementById(`service-toggle-${service}`).checked = isOn;
@@ -2971,7 +3019,7 @@ async function toggleMaintenanceMode() {
 async function toggleServiceAvailability(service) {
   const checkbox = document.getElementById(`service-toggle-${service}`);
   const turningOn = checkbox.checked;
-  const labels = { pasabuy: "Pasabuy", courier: "Courier", pa_angkas: "Pa Angkas" };
+  const labels = { pasabuy: "Pabili", bills_payment: "Bills Payment", errand: "Errand", courier: "Courier", pa_angkas: "Pa Angkas" };
   try {
     await api(`/api/admin/settings/service_available_${service}`, { method: "PUT", body: JSON.stringify({ value: turningOn }) });
     showToast(turningOn ? `${labels[service]} is now available` : `${labels[service]} now shows "Available Soon"`);
