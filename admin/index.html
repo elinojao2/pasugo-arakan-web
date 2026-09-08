@@ -1132,6 +1132,8 @@ select.filter:focus{
           <div class="settings-row"><div><div class="lbl">Service fee (%)</div><div class="desc">Applied to order subtotal</div></div><input id="s-service-pct" value="5"></div>
           <div class="settings-row"><div><div class="lbl">Pasugo service fee (&#8369;)</div><div class="desc">Flat fee for Pabili, Bills Payment, and Errand orders - separate from the store-order service fee</div></div><input id="s-pasugo-fee" value="20"></div>
           <div class="settings-row"><div><div class="lbl">Pasugo delivery surcharge (%)</div><div class="desc">Extra added to the rider's delivery fee for Pabili, Bills Payment, and Errand orders, since these take longer than a store delivery</div></div><input id="s-pasugo-surcharge" value="50"></div>
+          <div class="settings-row"><div><div class="lbl">Max active orders per rider</div><div class="desc">How many orders a rider can carry at once when stacking (combining nearby deliveries into one trip)</div></div><input id="s-max-stack" value="3"></div>
+          <div class="settings-row"><div><div class="lbl">Stacking proximity (km)</div><div class="desc">How close a new order's pickup must be to a rider's current order(s) to combine into one trip</div></div><input id="s-stack-proximity" value="1.5"></div>
           <div class="settings-row"><div><div class="lbl">Platform commission (%)</div><div class="desc">Default cut from merchant sales</div></div><input id="s-commission-pct" value="15"></div>
           <div class="settings-row"><div><div class="lbl">Minimum withdrawal</div><div class="desc">Riders &amp; merchants, in PHP</div></div><input id="s-min-withdraw" value="200"></div>
           <div class="settings-row"><div><div class="lbl">Loyalty points rate</div><div class="desc">PHP spent per 1 point earned (lower = points earned faster)</div></div><input id="s-loyalty-threshold" value="50"></div>
@@ -2976,6 +2978,8 @@ async function loadSettings() {
     set("s-service-pct", "service_fee_percent", v => (v * 100).toString());
     set("s-pasugo-fee", "pasugo_service_fee_flat", v => v.toString());
     set("s-pasugo-surcharge", "pasugo_delivery_fee_multiplier", v => ((v - 1) * 100).toString());
+    set("s-max-stack", "max_active_orders_per_rider", v => v.toString());
+    set("s-stack-proximity", "stacking_proximity_km", v => v.toString());
     set("s-commission-pct", "platform_commission_percent", v => (v * 100).toString());
     set("s-min-withdraw", "min_withdrawal_amount");
     set("s-loyalty-threshold", "loyalty_earn_threshold_php");
@@ -3045,6 +3049,8 @@ async function saveSettings() {
     service_fee_percent: parseFloat(document.getElementById("s-service-pct").value) / 100,
     pasugo_service_fee_flat: parseFloat(document.getElementById("s-pasugo-fee").value),
     pasugo_delivery_fee_multiplier: 1 + (parseFloat(document.getElementById("s-pasugo-surcharge").value) / 100),
+    max_active_orders_per_rider: parseInt(document.getElementById("s-max-stack").value),
+    stacking_proximity_km: parseFloat(document.getElementById("s-stack-proximity").value),
     platform_commission_percent: parseFloat(document.getElementById("s-commission-pct").value) / 100,
     min_withdrawal_amount: parseFloat(document.getElementById("s-min-withdraw").value),
     loyalty_earn_threshold_php: parseFloat(document.getElementById("s-loyalty-threshold").value),
