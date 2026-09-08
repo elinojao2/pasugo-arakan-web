@@ -2977,7 +2977,7 @@ async function loadSettings() {
     set("s-per-km", "per_km_delivery_fee");
     set("s-service-pct", "service_fee_percent", v => (v * 100).toString());
     set("s-pasugo-fee", "pasugo_service_fee_flat", v => v.toString());
-    set("s-pasugo-surcharge", "pasugo_delivery_fee_multiplier", v => ((v - 1) * 100).toString());
+    set("s-pasugo-surcharge", "pasugo_delivery_fee_multiplier", v => Math.round((v - 1) * 100 * 100) / 100 + "");
     set("s-max-stack", "max_active_orders_per_rider", v => v.toString());
     set("s-stack-proximity", "stacking_proximity_km", v => v.toString());
     set("s-commission-pct", "platform_commission_percent", v => (v * 100).toString());
