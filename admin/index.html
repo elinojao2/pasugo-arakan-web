@@ -1455,6 +1455,9 @@ select.filter:focus{
     </div>
     <div class="field"><label>Discount value</label><input id="promo-value" placeholder="e.g. 50"></div>
     <div class="field"><label>Minimum order amount</label><input id="promo-min" placeholder="e.g. 200"></div>
+    <div class="field"><label>Show in app</label>
+      <select id="promo-visible"><option value="true">Yes - listed in the promos section</option><option value="false">No - hidden, but still works if typed in</option></select>
+    </div>
     <div class="modal-actions">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-promo')">Cancel</button>
       <button class="btn btn-primary btn-sm" onclick="createPromo()">Create</button>
@@ -1473,6 +1476,9 @@ select.filter:focus{
     </div>
     <div class="field"><label>Status</label>
       <select id="edit-promo-active"><option value="true">Active</option><option value="false">Inactive</option></select>
+    </div>
+    <div class="field"><label>Show in app</label>
+      <select id="edit-promo-visible"><option value="true">Yes - listed in the promos section</option><option value="false">No - hidden, but still works if typed in</option></select>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-edit-promo')">Cancel</button>
@@ -2600,7 +2606,7 @@ async function loadPromos() {
       <td>${p.discount_type === "free_delivery" ? "Free delivery" : (p.discount_type === "percent" ? p.discount_value + "%" : money(p.discount_value))}</td>
       <td>${money(p.min_order_amount)}</td>
       <td class="cell-sub">${p.times_used || 0}${p.usage_limit_total ? " / " + p.usage_limit_total : " used"}</td>
-      <td>${p.is_active ? chip("active") : chip("cancelled")}</td>
+      <td>${p.is_active ? chip("active") : chip("cancelled")}${p.is_visible === false ? "<br><span style='font-size:10px;color:var(--gray-600)'>Hidden - manual entry only</span>" : ""}</td>
       <td class="cell-sub">${p.valid_until ? dt(p.valid_until) : "No expiry"}</td>
       <td class="row-actions">
         <button class="btn btn-ghost btn-sm" onclick="openEditPromoModal(${p.id})">Edit</button>
@@ -2618,6 +2624,7 @@ function openEditPromoModal(id) {
   document.getElementById("edit-promo-usage-limit").value = p.usage_limit_total ?? "";
   document.getElementById("edit-promo-per-user").value = p.usage_limit_per_user ?? 1;
   document.getElementById("edit-promo-active").value = p.is_active ? "true" : "false";
+  document.getElementById("edit-promo-visible").value = p.is_visible === false ? "false" : "true";
   openModal("modal-edit-promo");
 }
 async function saveEditPromo() {
@@ -2628,6 +2635,7 @@ async function saveEditPromo() {
       usage_limit_total: usageLimitRaw === "" ? null : parseInt(usageLimitRaw),
       usage_limit_per_user: parseInt(document.getElementById("edit-promo-per-user").value) || 1,
       is_active: document.getElementById("edit-promo-active").value === "true",
+      is_visible: document.getElementById("edit-promo-visible").value === "true",
     })});
     showToast("Promo code updated"); closeModal("modal-edit-promo"); loadPromos();
   } catch (e) { showToast(e.message, true); }
@@ -2644,9 +2652,10 @@ async function createPromo() {
   const discount_type = document.getElementById("promo-type").value;
   const discount_value = document.getElementById("promo-value").value;
   const min_order_amount = document.getElementById("promo-min").value || 0;
+  const is_visible = document.getElementById("promo-visible").value === "true";
   if (!code) { showToast("Code is required", true); return; }
   try {
-    await api("/api/admin/promo-codes", { method: "POST", body: JSON.stringify({ code, discount_type, discount_value, min_order_amount }) });
+    await api("/api/admin/promo-codes", { method: "POST", body: JSON.stringify({ code, discount_type, discount_value, min_order_amount, is_visible }) });
     showToast("Promo code created"); closeModal("modal-promo"); loadPromos();
   } catch (e) { showToast(e.message, true); }
 }
