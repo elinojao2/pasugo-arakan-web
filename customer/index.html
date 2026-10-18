@@ -330,6 +330,7 @@
       <span class="material-symbols-rounded">shopping_cart</span>
       <span class="cart-badge" id="cart-badge" style="display:none">0</span>
     </div>
+    <button class="btn btn-outline btn-sm topbar-getapp" id="topbar-getapp" onclick="showApkPrompt()" title="Get the app"><span class="material-symbols-rounded" style="font-size:18px">download</span><span class="lbl">Get the app</span></button>
     <button class="btn btn-primary btn-sm topbar-signin" id="topbar-signin" onclick="requireLogin()" style="display:none">Sign in</button>
     <div class="topbar-avatar" id="topbar-avatar" onclick="navigate('profile')">U</div>
   </div>
@@ -628,6 +629,38 @@
 </div>
 
 <div class="toast-stack" id="toast-stack"></div>
+
+<!-- Download-app prompt -->
+<div id="apk-pop" style="display:none" role="dialog" aria-label="Get the Pasugo Arakan app">
+  <div class="apk-card">
+    <button class="apk-x" onclick="dismissApkPrompt()" aria-label="Close">&times;</button>
+    <img src="../assets/favicon.png" alt="" class="apk-logo">
+    <h3>Get the Pasugo Arakan app</h3>
+    <p>Order food, groceries &amp; errands faster. Track your rider live and get promo alerts &mdash; free for Android.</p>
+    <a class="apk-btn" id="apk-dl" href="https://github.com/elinojao2/pasugo-arakan-web/releases/download/apks-v1/customer-app.apk" download onclick="apkDownloaded()">
+      <span class="material-symbols-rounded">download</span> Download for Android
+    </a>
+    <div class="apk-hint" id="apk-hint">After downloading, open the file and tap <b>Install</b>. If asked, allow installs from your browser.</div>
+    <a class="apk-later" href="#" onclick="dismissApkPrompt();return false">Maybe later &mdash; continue on web</a>
+  </div>
+</div>
+<style>
+#apk-pop{position:fixed;inset:0;z-index:9500;background:rgba(16,24,40,.55);backdrop-filter:blur(4px);align-items:flex-end;justify-content:center;padding:16px}
+#apk-pop.show{display:flex!important}
+.apk-card{position:relative;background:#fff;border-radius:22px;max-width:400px;width:100%;padding:26px 22px 18px;text-align:center;box-shadow:0 24px 70px rgba(16,24,40,.3);animation:apkUp .3s ease}
+@keyframes apkUp{from{transform:translateY(30px);opacity:0}to{transform:none;opacity:1}}
+.apk-x{position:absolute;right:12px;top:8px;border:0;background:none;font-size:26px;line-height:1;color:#98A2B3;cursor:pointer}
+.apk-logo{width:62px;height:62px;border-radius:16px;box-shadow:0 6px 16px rgba(18,183,106,.25);margin-bottom:10px}
+.apk-card h3{margin:0 0 6px;font-size:19px;letter-spacing:-.02em;color:#101828}
+.apk-card p{margin:0 0 16px;font-size:13px;line-height:1.55;color:#667085}
+.apk-btn{display:flex;align-items:center;justify-content:center;gap:8px;background:linear-gradient(135deg,#12B76A,#079455);color:#fff;text-decoration:none;font-weight:700;font-size:14px;padding:13px 16px;border-radius:13px;box-shadow:0 7px 16px rgba(18,183,106,.25)}
+.apk-hint{display:none;margin-top:12px;font-size:12px;line-height:1.5;color:#087443;background:#E9F9F0;border-radius:10px;padding:9px 11px}
+.apk-later{display:inline-block;margin-top:12px;font-size:12px;color:#667085;text-decoration:none}
+.topbar-getapp{display:none;align-items:center;gap:4px;white-space:nowrap}
+.topbar-getapp.show{display:inline-flex}
+@media(min-width:681px){#apk-pop{align-items:center}}
+@media(max-width:680px){.topbar-getapp .lbl{display:none}}
+</style>
 
 <!-- ================= PIN PICKER (booking pickup location) ================= -->
 <div class="modal-backdrop" id="modal-pin-picker" style="position:fixed;inset:0;background:rgba(17,24,39,.5);display:none;align-items:center;justify-content:center;z-index:150">
@@ -1062,10 +1095,38 @@ function applyServiceAvailability(services) {
 }
 setInterval(checkMaintenanceMode, 30000);
 
+// ------------------------------------------------------- App download prompt --
+const APK_KEY = "pasugo_apk_prompt_until";
+function apkEligible() {
+  const ua = navigator.userAgent || "";
+  if (/iPhone|iPad|iPod/i.test(ua)) return false;                 // APK cannot install on iOS
+  if (/PasugoArakan/i.test(ua)) return false;                     // already inside the app
+  if (window.matchMedia && matchMedia("(display-mode: standalone)").matches) return false;
+  return true;
+}
+function showApkPrompt() { const p = document.getElementById("apk-pop"); if (p) p.classList.add("show"); }
+function dismissApkPrompt() {
+  const p = document.getElementById("apk-pop"); if (p) p.classList.remove("show");
+  try { localStorage.setItem(APK_KEY, String(Date.now() + 7*24*3600*1000)); } catch (e) {}
+  const b = document.getElementById("topbar-getapp"); if (b && apkEligible()) b.classList.add("show");
+}
+function apkDownloaded() {
+  const h = document.getElementById("apk-hint"); if (h) h.style.display = "block";
+  try { localStorage.setItem(APK_KEY, String(Date.now() + 30*24*3600*1000)); } catch (e) {}
+}
+function initApkPrompt() {
+  if (!apkEligible()) return;
+  const b = document.getElementById("topbar-getapp"); if (b) b.classList.add("show");
+  let until = 0; try { until = Number(localStorage.getItem(APK_KEY)) || 0; } catch (e) {}
+  if (Date.now() < until) return;
+  setTimeout(() => { if (document.getElementById("app").classList.contains("active")) showApkPrompt(); }, 2500);
+}
+
 checkMaintenanceMode().then(async isDown => {
   if (isDown) return;
   await tryRestoreSession();
   if (!ME) enterGuest(); // no valid saved login: open the main page as a guest
+  initApkPrompt();
 });
 
 // ------------------------------------------------------------- Navigation --
