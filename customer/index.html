@@ -226,8 +226,15 @@
 </div>
 
 <!-- ================= AUTH ================= -->
-<div id="auth-screen">
+<style>
+#auth-screen.overlay{position:fixed!important;inset:0;z-index:300;overflow-y:auto}
+#auth-close{display:none;font-size:12px;color:var(--gray-600);font-weight:600;cursor:pointer;margin-bottom:14px}
+#auth-screen.overlay #auth-close{display:block}
+.topbar-signin{white-space:nowrap}
+</style>
+<div id="auth-screen" style="display:none">
   <div class="auth-card">
+    <a id="auth-close" onclick="closeAuthOverlay()">&larr; Continue browsing</a>
     <div class="auth-brand">
       <img src="../assets/favicon.png" alt="Pasugo Arakan">
       <div><div class="name">Pasugo Arakan</div><div class="sub">Order Now</div></div>
@@ -323,6 +330,7 @@
       <span class="material-symbols-rounded">shopping_cart</span>
       <span class="cart-badge" id="cart-badge" style="display:none">0</span>
     </div>
+    <button class="btn btn-primary btn-sm topbar-signin" id="topbar-signin" onclick="requireLogin()" style="display:none">Sign in</button>
     <div class="topbar-avatar" id="topbar-avatar" onclick="navigate('profile')">U</div>
   </div>
 
@@ -785,6 +793,7 @@ async function doRegister() {
 }
 
 function showOtpStep(alreadySent) {
+  document.getElementById("auth-screen").style.display = "flex";
   document.getElementById("auth-step-credentials").style.display = "none";
   document.getElementById("auth-step-forgot").style.display = "none";
   document.getElementById("auth-step-otp").style.display = "block";
@@ -916,21 +925,76 @@ async function doResetPasswordSubmit() {
   } catch (e) { errEl.textContent = e.message; }
 }
 
-async function enterApp() {
-  document.getElementById("auth-screen").style.display = "none";
+// ------------------------------------------------------- Guest browsing --
+// Visitors can browse stores, products and promos without an account. A login
+// or sign-up is only asked for when they do something personal (checkout,
+// Pasugo services, orders, profile, wallet).
+let AFTER_LOGIN = null; // action to run once the visitor has signed in
+const GUEST_PROTECTED_VIEWS = ["checkout", "tracking", "booking", "wallet", "orders", "profile"];
+
+function isLoggedIn() { return !!(TOKEN && ME); }
+
+function setAuthUi() {
+  const loggedIn = isLoggedIn();
+  const av = document.getElementById("topbar-avatar");
+  const si = document.getElementById("topbar-signin");
+  if (loggedIn) av.textContent = (ME.full_name || "U").charAt(0).toUpperCase();
+  av.style.display = loggedIn ? "" : "none";
+  si.style.display = loggedIn ? "none" : "";
+}
+
+// Returns true when the visitor is already signed in. Otherwise shows the
+// sign-in / sign-up screen on top of the page and remembers what to do next.
+function requireLogin(after) {
+  if (isLoggedIn()) return true;
+  AFTER_LOGIN = (typeof after === "function") ? after : null;
+  const a = document.getElementById("auth-screen");
+  a.classList.add("overlay");
+  a.style.display = "flex";
+  document.getElementById("auth-step-credentials").style.display = "block";
+  document.getElementById("auth-step-otp").style.display = "none";
+  document.getElementById("auth-step-forgot").style.display = "none";
+  switchAuthTab("login");
+  window.scrollTo(0, 0);
+  return false;
+}
+function closeAuthOverlay() {
+  AFTER_LOGIN = null;
+  const a = document.getElementById("auth-screen");
+  a.style.display = "none";
+  a.classList.remove("overlay");
+}
+async function enterGuest() {
+  closeAuthOverlay();
   document.getElementById("app").classList.add("active");
-  document.getElementById("topbar-avatar").textContent = (ME.full_name || "U").charAt(0).toUpperCase();
+  setAuthUi();
+  await loadHomeFeed();
+  navigate("home");
+}
+
+async function enterApp() {
+  const a = document.getElementById("auth-screen");
+  a.style.display = "none";
+  a.classList.remove("overlay");
+  document.getElementById("app").classList.add("active");
+  setAuthUi();
+  if (AFTER_LOGIN) {
+    // Signed in from a guest action (e.g. checkout): carry on where they were.
+    const next = AFTER_LOGIN; AFTER_LOGIN = null;
+    try { await next(); } catch (e) { console.error(e); }
+    return;
+  }
   await loadHomeFeed();
   navigate("home");
 }
 function logout() {
-  TOKEN = null; ME = null; CART = []; CART_STORE = null;
+  TOKEN = null; ME = null; CART = []; CART_STORE = null; AFTER_LOGIN = null;
   localStorage.removeItem("pasugo_customer_token");
-  document.getElementById("app").classList.remove("active");
-  document.getElementById("auth-screen").style.display = "flex";
+  updateCartBadge();
   document.getElementById("auth-step-credentials").style.display = "block";
   document.getElementById("auth-step-otp").style.display = "none";
   document.getElementById("auth-step-forgot").style.display = "none";
+  enterGuest();
 }
 
 // Runs once on page load — restores a previous session instead of forcing
@@ -998,10 +1062,15 @@ function applyServiceAvailability(services) {
 }
 setInterval(checkMaintenanceMode, 30000);
 
-checkMaintenanceMode().then(isDown => { if (!isDown) tryRestoreSession(); });
+checkMaintenanceMode().then(async isDown => {
+  if (isDown) return;
+  await tryRestoreSession();
+  if (!ME) enterGuest(); // no valid saved login: open the main page as a guest
+});
 
 // ------------------------------------------------------------- Navigation --
 function navigate(view) {
+  if (GUEST_PROTECTED_VIEWS.includes(view) && !isLoggedIn()) { requireLogin(() => navigate(view)); return; }
   document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
   document.getElementById("view-" + view).classList.add("active");
   if (TRACK_TIMER && view !== "tracking") { clearInterval(TRACK_TIMER); TRACK_TIMER = null; }
@@ -1232,6 +1301,7 @@ function renderCartDrawer() {
 
 async function goToCheckout() {
   if (CART.length === 0) return;
+  if (!isLoggedIn()) { closeCart(); requireLogin(goToCheckout); return; }
   closeCart();
   navigate("checkout");
   CURRENT_QUOTE = null;
@@ -1555,6 +1625,7 @@ async function ensureAddressesLoaded() {
 }
 
 async function openBooking(type) {
+  if (!requireLogin(() => openBooking(type))) return;
   BK_TYPE = type;
   BK_ITEMS = [];
   BK_PICKUP_LAT = null; BK_PICKUP_LNG = null;
