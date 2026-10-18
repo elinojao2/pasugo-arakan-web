@@ -659,6 +659,15 @@
 .topbar-getapp{display:none;align-items:center;gap:4px;white-space:nowrap}
 .topbar-getapp.show{display:inline-flex}
 @media(min-width:681px){#apk-pop{align-items:center}}
+/* booking / checkout screens: let grid columns and inputs shrink to the screen */
+.checkout-grid{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
+.checkout-grid>*{min-width:0}
+@media(max-width:800px){.checkout-grid{grid-template-columns:minmax(0,1fr)!important}}
+#view-booking input,#view-booking select,#view-booking textarea,#view-checkout input,#view-checkout select,#view-checkout textarea{max-width:100%;min-width:0}
+#bk-items-list>div{min-width:0}
+#view-booking .card,#view-checkout .card{overflow-wrap:anywhere}
+.pin-box,.pin-actions{min-width:0}
+.pin-actions{flex-wrap:wrap}
 @media(max-width:680px){
   .topbar{flex-wrap:wrap;height:auto!important;padding:8px 11px 9px!important;row-gap:8px}
   .topbar img.logo{margin-right:auto}
@@ -1016,6 +1025,7 @@ function requireLogin(after) {
   const a = document.getElementById("auth-screen");
   a.classList.add("overlay");
   a.style.display = "flex";
+  ovlOpen("auth", () => closeAuthOverlay(true));
   document.getElementById("auth-step-credentials").style.display = "block";
   document.getElementById("auth-step-otp").style.display = "none";
   document.getElementById("auth-step-forgot").style.display = "none";
@@ -1023,7 +1033,8 @@ function requireLogin(after) {
   window.scrollTo(0, 0);
   return false;
 }
-function closeAuthOverlay() {
+function closeAuthOverlay(fromPop) {
+  if (!fromPop) ovlClosed("auth");
   AFTER_LOGIN = null;
   const a = document.getElementById("auth-screen");
   a.style.display = "none";
@@ -1039,6 +1050,7 @@ async function enterGuest() {
 
 async function enterApp() {
   const a = document.getElementById("auth-screen");
+  ovlClosed("auth");
   a.style.display = "none";
   a.classList.remove("overlay");
   document.getElementById("app").classList.add("active");
@@ -1162,8 +1174,48 @@ checkMaintenanceMode().then(async isDown => {
 });
 
 // ------------------------------------------------------------- Navigation --
-function navigate(view) {
+// ---------------------------------------------------- Browser history / Back --
+// Every in-app screen and overlay gets a history entry so the phone's Back key
+// (or the browser Back button) steps back inside the app instead of leaving it.
+let CUR_VIEW = "home", PENDING_BACK = false, PUSHQ = [];
+const OVL = [];
+function histPush(st) {
+  if (PENDING_BACK) { PUSHQ.push(st); return; }
+  try { history.pushState(st, ""); } catch (e) {}
+}
+function ovlOpen(name, closeFn) {
+  if (OVL.some(o => o.name === name)) return;
+  OVL.push({ name, closeFn });
+  histPush({ o: name });
+}
+function ovlClosed(name) {               // overlay closed by a button, not by Back
+  const i = OVL.findIndex(o => o.name === name);
+  if (i < 0) return;
+  OVL.splice(i, 1);
+  if (history.state && history.state.o === name && !PENDING_BACK) {
+    PENDING_BACK = true;
+    try { history.back(); } catch (e) { PENDING_BACK = false; }
+  }
+}
+window.addEventListener("popstate", e => {
+  if (PENDING_BACK) {                     // our own history.back() finished
+    PENDING_BACK = false;
+    PUSHQ.splice(0).forEach(st => { try { history.pushState(st, ""); } catch (x) {} });
+    return;
+  }
+  if (OVL.length) { const top = OVL.pop(); top.closeFn(true); return; }   // Back closes the open overlay
+  const st = e.state;
+  if (st && st.v) {
+    if (GUEST_PROTECTED_VIEWS.includes(st.v) && !isLoggedIn()) { navigate("home", true); return; }
+    navigate(st.v, true);
+  }
+});
+try { history.replaceState({ v: "home" }, ""); } catch (e) {}
+
+function navigate(view, fromPop) {
   if (GUEST_PROTECTED_VIEWS.includes(view) && !isLoggedIn()) { requireLogin(() => navigate(view)); return; }
+  if (!fromPop && view !== CUR_VIEW) histPush({ v: view });
+  CUR_VIEW = view;
   document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
   document.getElementById("view-" + view).classList.add("active");
   if (TRACK_TIMER && view !== "tracking") { clearInterval(TRACK_TIMER); TRACK_TIMER = null; }
@@ -1368,11 +1420,13 @@ function updateCartBadge() {
 function cartSubtotal() { return CART.reduce((sum, c) => sum + c.product.price * c.qty, 0); }
 
 function openCart() {
+  ovlOpen("cart", () => closeCart(true));
   renderCartDrawer();
   document.getElementById("cart-drawer").classList.add("open");
   document.getElementById("cart-overlay").classList.add("active");
 }
-function closeCart() {
+function closeCart(fromPop) {
+  if (!fromPop) ovlClosed("cart");
   document.getElementById("cart-drawer").classList.remove("open");
   document.getElementById("cart-overlay").classList.remove("active");
 }
@@ -1512,6 +1566,7 @@ async function placeOrder() {
 
 // ------------------------------------------------------------ Add address --
 function openAddAddress() {
+  ovlOpen("addr", () => closeAddAddress(true));
   document.getElementById("modal-address").style.display = "flex";
   setTimeout(() => {
     const center = { lat: USER_LAT || 7.2544, lng: USER_LNG || 124.9200 };
@@ -1520,7 +1575,7 @@ function openAddAddress() {
     ADDR_MAP.addListener("click", e => ADDR_MARKER.setPosition(e.latLng));
   }, 50);
 }
-function closeAddAddress() { document.getElementById("modal-address").style.display = "none"; }
+function closeAddAddress(fromPop) { if (!fromPop) ovlClosed("addr"); document.getElementById("modal-address").style.display = "none"; }
 
 async function saveNewAddress() {
   if (!ADDR_MARKER) { showToast("Pin a location on the map.", true); return; }
@@ -1805,6 +1860,7 @@ let PIN_LABEL = "";
 function openBookingMap() {
   if (!(window.google && google.maps)) { showToast("Map could not load. Check your connection and try again.", true); return; }
   PIN_LABEL = "";
+  ovlOpen("pin", () => closePinPicker(true));
   document.getElementById("modal-pin-picker").style.display = "flex";
   document.getElementById("pp-search").value = "";
   hideSg(document.getElementById("pp-sg"));
@@ -1817,7 +1873,7 @@ function openBookingMap() {
     PIN_MAP.addListener("click", e => PIN_MARKER.setPosition(e.latLng));
   }, 50);
 }
-function closePinPicker() { document.getElementById("modal-pin-picker").style.display = "none"; }
+function closePinPicker(fromPop) { if (!fromPop) ovlClosed("pin"); document.getElementById("modal-pin-picker").style.display = "none"; }
 function confirmPinPicker() {
   if (!PIN_MARKER) { closePinPicker(); return; }
   const pos = PIN_MARKER.getPosition();
