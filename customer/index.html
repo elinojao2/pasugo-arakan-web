@@ -665,6 +665,12 @@
 @media(max-width:800px){.checkout-grid{grid-template-columns:minmax(0,1fr)!important}}
 #view-booking input,#view-booking select,#view-booking textarea,#view-checkout input,#view-checkout select,#view-checkout textarea{max-width:100%;min-width:0}
 #bk-items-list>div{min-width:0}
+/* cart drawer: use the real visible height so "Proceed to checkout" is never pushed off-screen by the browser address bar */
+.cart-drawer{height:100vh;height:100dvh;height:var(--app-h,100dvh);max-height:100dvh;max-height:var(--app-h,100dvh)}
+.cart-drawer-body{min-height:0}
+.cart-drawer-footer{flex:0 0 auto;background:#fff;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}
+#checkout-btn{width:100%;min-height:46px}
+@media(max-width:680px){.cart-drawer-footer{padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}}
 #view-booking .card,#view-checkout .card{overflow-wrap:anywhere}
 .pin-box,.pin-actions{min-width:0}
 .pin-actions{flex-wrap:wrap}
@@ -723,8 +729,9 @@
     <div class="field"><label>Label</label><input id="addr-label" placeholder="Home, Work, etc."></div>
     <div class="field"><label>Recipient name</label><input id="addr-recipient"></div>
     <div class="field"><label>Contact number</label><input id="addr-contact" placeholder="09XXXXXXXXX"></div>
-    <div class="field"><label>Barangay</label><input id="addr-barangay"></div>
-    <div class="field"><label>Street / landmark</label><input id="addr-street"></div>
+    <div class="field" style="position:relative"><label>Barangay</label><input id="addr-barangay" placeholder="Type or choose your barangay" autocomplete="off"><div class="sg-list" id="addr-brgy-sg"></div>
+      <div id="addr-brgy-hint" style="font-size:11.5px;color:var(--gray-600);margin-top:5px">Choose your barangay from the list and we'll place the pin there. Then drag the pin to your exact spot.</div></div>
+    <div class="field" style="position:relative"><label>Street / landmark</label><input id="addr-street" placeholder="e.g. near the church, sitio, house no." autocomplete="off"><div class="sg-list" id="addr-street-sg"></div></div>
     <div style="display:flex;gap:10px;margin-top:16px">
       <button class="btn btn-ghost" onclick="closeAddAddress()" style="flex:1">Cancel</button>
       <button class="btn btn-primary" onclick="saveNewAddress()" style="flex:1">Save address</button>
@@ -1177,6 +1184,7 @@ checkMaintenanceMode().then(async isDown => {
 // ---------------------------------------------------- Browser history / Back --
 // Every in-app screen and overlay gets a history entry so the phone's Back key
 // (or the browser Back button) steps back inside the app instead of leaving it.
+(function(){ const f = () => document.documentElement.style.setProperty("--app-h", window.innerHeight + "px"); f(); window.addEventListener("resize", f); window.addEventListener("orientationchange", f); })();
 let CUR_VIEW = "home", PENDING_BACK = false, PUSHQ = [];
 const OVL = [];
 function histPush(st) {
@@ -1565,20 +1573,58 @@ async function placeOrder() {
 }
 
 // ------------------------------------------------------------ Add address --
+let ADDR_TOUCHED = false;
+function moveAddrPin(pos, zoom) {
+  ADDR_TOUCHED = true;
+  if (ADDR_MAP) { ADDR_MAP.setCenter(pos); if (ADDR_MAP.setZoom) ADDR_MAP.setZoom(zoom || 16); }
+  if (ADDR_MARKER) ADDR_MARKER.setPosition(pos);
+}
+async function pickAddrBarangay(it) {
+  document.getElementById("addr-barangay").value = it.brgy;
+  const hint = document.getElementById("addr-brgy-hint");
+  const pos = await geocodeBarangay(it.brgy);
+  if (pos) { moveAddrPin(pos, 15); hint.style.color = "#B54708"; hint.textContent = "Pin placed at the center of Brgy. " + it.brgy + ". Drag it to your exact spot for the most accurate delivery fee."; }
+  else { hint.style.color = "#B42318"; hint.textContent = "Couldn't locate this barangay automatically. Please tap the map to place the pin."; }
+}
+async function pickAddrStreet(it) {
+  document.getElementById("addr-street").value = it.title + (it.sub ? ", " + it.sub : "");
+  const pos = await resolveSuggestion(it);
+  if (pos) moveAddrPin(pos, 17);
+}
+function initAddressSuggest() {
+  const bi = document.getElementById("addr-barangay"), bl = document.getElementById("addr-brgy-sg");
+  const showB = () => renderSg(bl, [{ head: "Barangays of Arakan", items: barangaySuggestions(bi.value.trim()) }], pickAddrBarangay);
+  bi.addEventListener("focus", showB); bi.addEventListener("input", showB);
+  bi.addEventListener("blur", () => setTimeout(() => { hideSg(bl); const b = matchBarangay(bi.value); if (b && !ADDR_TOUCHED) pickAddrBarangay({ brgy: b }); }, 250));
+  const si = document.getElementById("addr-street"), sl = document.getElementById("addr-street-sg");
+  let t = null, seq = 0;
+  const showS = async () => { const q = si.value.trim(); if (q.length < 2) { hideSg(sl); return; } const my = ++seq; const rem = await remoteSuggest(q); if (my !== seq || document.activeElement !== si) return; renderSg(sl, [{ head: "Places near Arakan", items: rem }], pickAddrStreet); };
+  si.addEventListener("input", () => { clearTimeout(t); t = setTimeout(showS, 350); });
+  si.addEventListener("blur", () => setTimeout(() => hideSg(sl), 200));
+}
+document.addEventListener("DOMContentLoaded", initAddressSuggest);
 function openAddAddress() {
   ovlOpen("addr", () => closeAddAddress(true));
   document.getElementById("modal-address").style.display = "flex";
   setTimeout(() => {
-    const center = { lat: USER_LAT || 7.2544, lng: USER_LNG || 124.9200 };
-    ADDR_MAP = new google.maps.Map(document.getElementById("address-map"), { center, zoom: 15 });
+    ADDR_TOUCHED = USER_LAT != null;                 // device location counts as a real position
+    const center = USER_LAT != null ? { lat: USER_LAT, lng: USER_LNG } : ARAKAN_FALLBACK;
+    ADDR_MAP = new google.maps.Map(document.getElementById("address-map"), { center, zoom: USER_LAT != null ? 16 : 13, gestureHandling: "greedy" });
     ADDR_MARKER = new google.maps.Marker({ position: center, map: ADDR_MAP, draggable: true });
-    ADDR_MAP.addListener("click", e => ADDR_MARKER.setPosition(e.latLng));
+    ADDR_MAP.addListener("click", e => { ADDR_MARKER.setPosition(e.latLng); ADDR_TOUCHED = true; });
+    if (ADDR_MARKER.addListener) ADDR_MARKER.addListener("dragend", () => { ADDR_TOUCHED = true; });
   }, 50);
 }
 function closeAddAddress(fromPop) { if (!fromPop) ovlClosed("addr"); document.getElementById("modal-address").style.display = "none"; }
 
 async function saveNewAddress() {
   if (!ADDR_MARKER) { showToast("Pin a location on the map.", true); return; }
+  const bTyped = document.getElementById("addr-barangay").value.trim();
+  if (!ADDR_TOUCHED) {
+    const b = matchBarangay(bTyped);
+    if (b) { await pickAddrBarangay({ brgy: b }); }
+    if (!ADDR_TOUCHED) { showToast("Please choose your barangay from the list or pin your location on the map, so the delivery fee is accurate.", true); return; }
+  }
   const pos = ADDR_MARKER.getPosition();
   try {
     const address = await api("/api/customer/addresses", { method: "POST", body: JSON.stringify({
@@ -1889,7 +1935,50 @@ function confirmPinPicker() {
 }
 
 // ----- Place suggestions (known places / establishments near Arakan) -----
-const ARAKAN_FALLBACK = { lat: 7.2544, lng: 124.9200 };
+const ARAKAN_FALLBACK = { lat: 7.3514, lng: 125.1262 };   // Arakan, Cotabato (municipal center)
+const BARANGAYS = ["Allab","Anapolon","Badiangon","Binoongan","Dallag","Datu Ladayon","Datu Matangkil","Doroluman","Gambodes","Ganatan","Greenfield","Kabalantian","Katipunan","Kinawayan","Kulaman Valley","Lanao Kuran","Libertad","Makalangot","Malibatuan","Maria Caridad","Meocan","Naje","Napalico","Salasang","San Miguel","Santo Niño","Sumalili","Tumanding"];
+function normPlace(t) { return (t || "").toString().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\b(barangay|brgy|bgy|brg)\b\.?/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim(); }
+function matchBarangay(text) { const n = normPlace(text); return n ? BARANGAYS.find(b => normPlace(b) === n) || null : null; }
+function barangaySuggestions(q) {
+  const n = normPlace(q);
+  let list = n ? BARANGAYS.filter(b => normPlace(b).includes(n)) : BARANGAYS.slice();
+  if (n) list.sort((a, b) => (normPlace(a).startsWith(n) ? 0 : 1) - (normPlace(b).startsWith(n) ? 0 : 1));
+  return list.slice(0, n ? 8 : 28).map(b => ({ icon: "location_city", title: "Brgy. " + b, sub: "Arakan, Cotabato", brgy: b }));
+}
+function kmBetween(a, b) {
+  const R = 6371, rad = x => x * Math.PI / 180, dLa = rad(b.lat - a.lat), dLn = rad(b.lng - a.lng);
+  const h = Math.sin(dLa / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLn / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+const BRGY_CACHE_KEY = "pasugo_brgy_geo_v1";
+function brgyCacheGet(name) { try { return (JSON.parse(localStorage.getItem(BRGY_CACHE_KEY) || "{}"))[name] || null; } catch (e) { return null; } }
+function brgyCacheSet(name, pos) { try { const o = JSON.parse(localStorage.getItem(BRGY_CACHE_KEY) || "{}"); o[name] = pos; localStorage.setItem(BRGY_CACHE_KEY, JSON.stringify(o)); } catch (e) {} }
+// Barangay -> coordinates (looked up once, then cached on the device). Results far from Arakan are rejected.
+async function geocodeBarangay(name) {
+  const hit = brgyCacheGet(name); if (hit) return hit;
+  const ok = p => p && isFinite(p.lat) && isFinite(p.lng) && kmBetween(p, ARAKAN_FALLBACK) <= 35;
+  let pos = null;
+  try {
+    if (window.google && google.maps && google.maps.Geocoder) {
+      pos = await new Promise(res => new google.maps.Geocoder().geocode({ address: `Barangay ${name}, Arakan, Cotabato, Philippines`, region: "PH" },
+        (r, st) => res(st === "OK" && r && r[0] ? { lat: r[0].geometry.location.lat(), lng: r[0].geometry.location.lng() } : null)));
+    }
+  } catch (e) { pos = null; }
+  if (!ok(pos)) {
+    try {
+      const url = `https://nominatim.openstreetmap.org/search?format=jsonv2&limit=5&countrycodes=ph&q=${encodeURIComponent(name + ", Arakan, Cotabato")}`;
+      const j = await (await fetch(url)).json();
+      pos = (j || []).map(p => ({ lat: Number(p.lat), lng: Number(p.lon) })).find(ok) || null;
+    } catch (e) { pos = null; }
+  }
+  if (!ok(pos)) {                                  // last resort: a partner store registered in that barangay
+    const st = PLACE_STORES.filter(x => normPlace(x.barangay) === normPlace(name) && (x.lat ?? x.latitude) != null);
+    pos = st.length ? { lat: st.reduce((t, x) => t + Number(x.lat ?? x.latitude), 0) / st.length, lng: st.reduce((t, x) => t + Number(x.lng ?? x.longitude), 0) / st.length } : null;
+  }
+  if (!ok(pos)) return null;
+  brgyCacheSet(name, pos);
+  return pos;
+}
 function placeBias() {
   const pts = PLACE_STORES.filter(x => (x.lat ?? x.latitude) != null);
   if (pts.length) {
@@ -1948,6 +2037,7 @@ async function remoteSuggest(q) {
   return out;
 }
 async function resolveSuggestion(it) {
+  if (it.brgy) return await geocodeBarangay(it.brgy);
   if (it.lat != null && it.lng != null && !isNaN(it.lat)) return { lat: Number(it.lat), lng: Number(it.lng) };
   if (it.storeId) { try { const st = await api("/api/customer/stores/" + it.storeId); const la = st.lat ?? st.latitude, ln = st.lng ?? st.longitude; if (la != null) return { lat: Number(la), lng: Number(ln) }; } catch (e) {} }
   if (it.placeId && window.google && google.maps.places) {
@@ -1960,23 +2050,31 @@ function attachPlaceSuggest(input, list, onPick) {
   let timer = null;
   const show = async () => {
     const q = input.value.trim(); const seq = ++SG_SEQ;
-    if (q.length < 2) { renderSg(list, [{ head: "Popular in Arakan", items: storeSuggestions("") }], onPick); if (!PLACE_STORES.length) hideSg(list); return; }
-    renderSg(list, [{ head: "Pasugo partner stores", items: storeSuggestions(q) }], onPick);
+    const brg = { head: "Barangays of Arakan", items: barangaySuggestions(q) };
+    if (q.length < 2) { renderSg(list, [brg, { head: "Popular in Arakan", items: storeSuggestions("") }], onPick); return; }
+    renderSg(list, [brg, { head: "Pasugo partner stores", items: storeSuggestions(q) }], onPick);
     const rem = await remoteSuggest(q);
     if (seq !== SG_SEQ || document.activeElement !== input) return;
-    renderSg(list, [{ head: "Pasugo partner stores", items: storeSuggestions(q) }, { head: "Places near Arakan", items: rem }], onPick);
+    renderSg(list, [brg, { head: "Pasugo partner stores", items: storeSuggestions(q) }, { head: "Places near Arakan", items: rem }], onPick);
   };
   input.addEventListener("focus", show);
   input.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(show, 300); });
   input.addEventListener("blur", () => setTimeout(() => hideSg(list), 200));
+  if (input.id === "bk-pickup-address") {           // typed a barangay name but didn't tap the suggestion
+    const auto = () => { const b = matchBarangay(input.value); if (b && BK_PICKUP_LAT == null) pickPickupSuggestion({ icon: "location_city", title: "Brgy. " + b, sub: "Arakan, Cotabato", brgy: b }); };
+    input.addEventListener("blur", () => setTimeout(auto, 250));
+    input.addEventListener("keydown", e => { if (e.key === "Enter") auto(); });
+  }
 }
 async function pickPickupSuggestion(it) {
   const pos = await resolveSuggestion(it);
   const label = [it.title, it.sub && !/Pasugo partner/.test(it.sub) ? it.sub : ""].filter(Boolean).join(", ");
   document.getElementById("bk-pickup-address").value = label;
-  if (!pos) { showToast("Couldn't get that place's location. Please pin it on the map.", true); return; }
+  if (!pos) { showToast("Couldn't locate that place automatically. Please pin it on the map.", true); openBookingMap(); return; }
   BK_PICKUP_LAT = pos.lat; BK_PICKUP_LNG = pos.lng;
-  document.getElementById("bk-pickup-status").innerHTML = `<span class="material-symbols-rounded" style="font-size:16px;color:var(--green-dark)">check_circle</span> Pickup location set`;
+  document.getElementById("bk-pickup-status").innerHTML = it.brgy
+    ? `<span class="material-symbols-rounded" style="font-size:16px;color:#B54708">info</span> Using the center of Brgy. ${escapeHtml(it.brgy)} - tap "Pin on map" for the exact spot (more accurate fee)`
+    : `<span class="material-symbols-rounded" style="font-size:16px;color:var(--green-dark)">check_circle</span> Pickup location set`;
   fetchBookingQuote();
 }
 async function pickMapSuggestion(it) {
