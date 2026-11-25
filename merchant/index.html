@@ -920,14 +920,14 @@ async function enterApp() {
   await loadStores();
   navigate("overview");
   startNewOrderPolling();
-  initApkPrompt();
+  showTopbarApkBtn();
 }
 
 // ------------------------------------------------------- App download prompt --
 const APK_KEY = "pasugo_merchant_apk_prompt_until";
 function apkEligible() {
   const ua = navigator.userAgent || "";
-  if (!/Android/i.test(ua)) return false;                          // the APK installs on Android phones only
+  if (/iPhone|iPad|iPod/i.test(ua)) return false;                  // an APK cannot install on iOS
   if (/PasugoArakan/i.test(ua)) return false;                      // already inside the app
   if (window.matchMedia && matchMedia("(display-mode: standalone)").matches) return false;
   return true;
@@ -941,12 +941,21 @@ function apkDownloaded() {
   const h = document.getElementById("apk-hint"); if (h) h.style.display = "block";
   try { localStorage.setItem(APK_KEY, String(Date.now() + 30*24*3600*1000)); } catch (e) {}
 }
-function initApkPrompt() {
+function showTopbarApkBtn() {
   if (!apkEligible()) return;
   const b = document.getElementById("topbar-getapp"); if (b) b.classList.add("show");
+}
+// Runs once when the page opens (sign-in screen) - not again after login.
+function initApkPrompt() {
+  if (!apkEligible()) return;
+  showTopbarApkBtn();
   let until = 0; try { until = Number(localStorage.getItem(APK_KEY)) || 0; } catch (e) {}
   if (Date.now() < until) return;
-  setTimeout(() => { if (document.getElementById("app").classList.contains("active")) showApkPrompt(); }, 2500);
+  setTimeout(() => {
+    const m = document.getElementById("maintenance-screen");
+    if (m && getComputedStyle(m).display !== "none") return;      // not over the maintenance notice
+    showApkPrompt();
+  }, 2500);
 }
 function logout() {
   TOKEN = null; ME = null;
@@ -1037,7 +1046,7 @@ async function checkMaintenanceMode() {
 }
 setInterval(checkMaintenanceMode, 30000);
 
-checkMaintenanceMode().then(isDown => { if (!isDown) tryRestoreSession(); });
+checkMaintenanceMode().then(isDown => { if (!isDown) { tryRestoreSession(); initApkPrompt(); } });
 
 // ------------------------------------------------------------- Stores --
 async function loadStores() {
