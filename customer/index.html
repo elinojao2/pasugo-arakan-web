@@ -637,10 +637,9 @@
     <img src="../assets/favicon.png" alt="" class="apk-logo">
     <h3>Get the Pasugo Arakan app</h3>
     <p>Order food, groceries &amp; errands faster. Track your rider live and get promo alerts &mdash; free for Android.</p>
-    <a class="apk-btn" id="apk-dl" href="https://github.com/elinojao2/pasugo-arakan-web/releases/download/apks-v1/customer-app.apk" download onclick="apkDownloaded()">
-      <span class="material-symbols-rounded">download</span> Download for Android
+    <a class="apk-btn" id="apk-play" href="https://play.google.com/store/apps/details?id=com.pasugoarakan.customer" target="_blank" rel="noopener" onclick="apkDownloaded()">
+      <span class="material-symbols-rounded">shop</span> Get it on Google Play
     </a>
-    <div class="apk-hint" id="apk-hint">After downloading, open the file and tap <b>Install</b>. If asked, allow installs from your browser.</div>
     <a class="apk-later" href="#" onclick="dismissApkPrompt();return false">Maybe later &mdash; continue on web</a>
   </div>
 </div>
@@ -1162,7 +1161,6 @@ function dismissApkPrompt() {
   const b = document.getElementById("topbar-getapp"); if (b && apkEligible()) b.classList.add("show");
 }
 function apkDownloaded() {
-  const h = document.getElementById("apk-hint"); if (h) h.style.display = "block";
   try { localStorage.setItem(APK_KEY, String(Date.now() + 30*24*3600*1000)); } catch (e) {}
 }
 function initApkPrompt() {
